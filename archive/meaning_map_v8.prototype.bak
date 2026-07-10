@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>meaning map — bridges between fields</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root{
+  --linen:#f8f6f1; --linen-2:#f1ede4; --linen-3:#e8e2d6;
+  --line:#d9d2c4; --ink:#1a1713; --ink-2:#6f665a; --ink-3:#a89e8e;
+  --plum:#8f84b8; --plum-fill:#efecf7;
+  --oxide:#b58f82; --oxide-fill:#f6ece8;
+  --sage:#9aa890; --bluegrey:#93a3b5; --amber:#cda867; --rose:#d4a0a8;
+  --shadow:0 14px 40px rgba(40,30,12,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:
+    radial-gradient(circle at 50% 42%,#fdfcfa,var(--linen) 46%,var(--linen-2) 100%);
+  color:var(--ink); overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+#stage{position:fixed;inset:0}
+svg#graph{width:100%;height:100%;display:block;cursor:grab}
+svg#graph.drag{cursor:grabbing}
+
+/* edges */
+.edge{stroke:var(--line);stroke-width:1;fill:none}
+.edge.skel{stroke-width:2.4;stroke-linecap:round}
+
+/* nodes */
+.node{cursor:pointer}
+.node circle{transition:r .18s ease, fill .18s ease}
+.node text{
+  font-family:'JetBrains Mono',monospace;font-size:11px;fill:var(--ink-2);
+  text-anchor:middle;dominant-baseline:middle;pointer-events:none;user-select:none;
+}
+.node.cur circle{fill:var(--ink);stroke:none}
+.node.cur text{fill:var(--linen);font-weight:500;font-size:12px}
+.node.anchor text{fill:var(--ink);font-weight:600}
+.node.bridge text{fill:var(--ink);font-weight:500}
+.node.dim{opacity:.42}
+
+/* ── left dock ── */
+#dock{
+  position:fixed;top:18px;left:18px;width:340px;z-index:20;
+  background:rgba(248,246,241,.92);backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  padding:16px 16px 14px;
+}
+#title{font-family:'Fraunces',serif;font-size:13px;font-weight:600;letter-spacing:.04em;
+  color:var(--ink-2);text-transform:lowercase;margin-bottom:10px}
+#search{
+  width:100%;font-family:'Fraunces',serif;font-size:26px;font-weight:600;letter-spacing:-.02em;
+  background:transparent;border:none;border-bottom:1px solid var(--line);
+  color:var(--ink);outline:none;padding-bottom:7px;transition:border-color .25s;
+}
+#search:focus{border-bottom-color:var(--amber)}
+#search::placeholder{color:var(--ink-3)}
+#trail{margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);
+  display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:14px}
+.crumb{cursor:pointer;color:var(--ink-2)}
+.crumb:hover{color:var(--plum)}
+.crumb.now{color:var(--ink);font-weight:500}
+#status{margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-3)}
+
+/* ── anchors panel ── */
+#anchors-wrap{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+#anchors-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#anchors-head .lab{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3)}
+.tiny-btn{font-family:'JetBrains Mono',monospace;font-size:10px;background:none;border:none;
+  color:var(--plum);cursor:pointer;padding:2px 4px}
+.tiny-btn:hover{text-decoration:underline}
+.anchor-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+.anchor-row .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.anchor-row .nm{flex:1}
+.anchor-row .gauge{flex:0 0 84px;height:5px;background:var(--linen-3);border-radius:3px;overflow:hidden}
+.anchor-row .gauge i{display:block;height:100%;border-radius:3px}
+.anchor-row .pct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-2);width:30px;text-align:right}
+.anchor-row .x{cursor:pointer;color:var(--ink-3);font-size:13px}
+.anchor-row .x:hover{color:var(--oxide)}
+#add-area{display:none;margin-top:8px}
+#add-area input,#add-area textarea{width:100%;font-family:'Inter';font-size:12px;
+  border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--linen);color:var(--ink);margin-bottom:6px}
+#add-area textarea{height:54px;resize:vertical}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.preset{font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid var(--line);
+  background:var(--linen);border-radius:20px;padding:4px 9px;cursor:pointer;color:var(--ink-2)}
+.preset:hover{border-color:var(--plum);color:var(--plum)}
+
+/* ── bridges readout (signature) ── */
+#bridges{position:fixed;right:18px;top:18px;width:286px;z-index:20;
+  background:rgba(248,246,241,.92);backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  padding:14px 16px;max-height:calc(100vh - 36px);overflow:auto;display:none}
+#bridges .lab{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+.bridge-block{margin-bottom:14px}
+.bridge-block .to{font-family:'Fraunces',serif;font-size:14px;font-weight:600;margin-bottom:3px}
+.bridge-block .to b{font-weight:600}
+.bridge-block .skel{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-2);line-height:1.55}
+.bridge-block .skel .hop{cursor:pointer}
+.bridge-block .skel .hop:hover{color:var(--plum)}
+.bridge-block .arrow{color:var(--ink-3);margin:0 3px}
+.bridge-block .note{font-size:10.5px;color:var(--oxide);margin-top:4px;font-style:italic}
+
+/* ── overlay / loader / picker ── */
+#overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  background:rgba(248,246,241,.96);backdrop-filter:blur(6px);text-align:center;padding:24px}
+#overlay .card{max-width:460px}
+#overlay h1{font-family:'Fraunces',serif;font-size:30px;font-weight:600;letter-spacing:-.02em;margin-bottom:10px}
+#overlay p{font-size:14px;color:var(--ink-2);line-height:1.6;margin-bottom:16px}
+#overlay code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--linen-2);
+  padding:2px 6px;border-radius:5px}
+#drop{border:1.5px dashed var(--line);border-radius:14px;padding:22px;cursor:pointer;transition:border-color .2s,background .2s}
+#drop:hover,#drop.over{border-color:var(--plum);background:var(--plum-fill)}
+#drop .big{font-size:14px;font-weight:500;margin-bottom:4px}
+#drop .sm{font-size:11.5px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--plum);
+  border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+#hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:15;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-3);
+  background:rgba(248,246,241,.8);padding:5px 12px;border-radius:20px;border:1px solid var(--line)}
+
+@media(max-width:820px){
+  #dock{width:auto;left:12px;right:12px;top:12px}
+  #bridges{left:12px;right:12px;top:auto;bottom:46px;width:auto;max-height:38vh}
+}
+
+/* ════════════════════════════════════════════════════════════
+   GUIDE / TOUR  (additive — namespaced guide- / tour-)
+   reuses the linen palette + Fraunces/Inter/Mono tokens above
+   ════════════════════════════════════════════════════════════ */
+
+/* persistent help button — sits beside the bottom hint */
+#guide-btn{
+  position:fixed;bottom:14px;left:18px;z-index:30;
+  width:30px;height:30px;border-radius:50%;cursor:pointer;
+  background:rgba(248,246,241,.92);backdrop-filter:blur(14px);
+  border:1px solid var(--line);color:var(--ink-2);
+  font-family:'Fraunces',serif;font-size:15px;font-weight:600;line-height:1;
+  box-shadow:var(--shadow);transition:border-color .2s,color .2s;
+  display:flex;align-items:center;justify-content:center;padding:0;
+}
+#guide-btn:hover{border-color:var(--plum);color:var(--plum)}
+
+/* first-run welcome card — its own dimmer, distinct from the loader #overlay */
+#guide-welcome{
+  position:fixed;inset:0;z-index:60;display:none;
+  align-items:center;justify-content:center;padding:24px;
+  background:rgba(248,246,241,.78);backdrop-filter:blur(6px);
+}
+#guide-welcome.on{display:flex}
+.guide-card{
+  max-width:440px;background:var(--linen);
+  border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  padding:26px 28px 22px;text-align:left;
+}
+.guide-card h2{
+  font-family:'Fraunces',serif;font-size:26px;font-weight:600;letter-spacing:-.02em;
+  color:var(--ink);margin-bottom:12px;text-transform:lowercase;
+}
+.guide-card p{font-size:14px;color:var(--ink-2);line-height:1.62;margin-bottom:12px}
+.guide-card p.guide-try{
+  font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink);
+  background:var(--linen-2);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;line-height:1.55;margin-bottom:18px;
+}
+.guide-card .guide-actions{display:flex;align-items:center;gap:14px}
+.guide-primary{
+  font-family:'Inter';font-size:13px;font-weight:600;cursor:pointer;
+  background:var(--ink);color:var(--linen);border:none;border-radius:10px;
+  padding:9px 16px;transition:opacity .2s;
+}
+.guide-primary:hover{opacity:.88}
+.guide-skip{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);
+  background:none;border:none;cursor:pointer;padding:4px;
+}
+.guide-skip:hover{color:var(--ink-2);text-decoration:underline}
+
+/* stepped tour tooltip */
+#guide-tip{
+  position:fixed;z-index:62;display:none;max-width:280px;
+  background:var(--linen);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);padding:14px 16px 12px;
+}
+#guide-tip.on{display:block}
+#guide-tip .guide-step{
+  font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;
+}
+#guide-tip .guide-h{
+  font-family:'Fraunces',serif;font-size:16px;font-weight:600;
+  color:var(--ink);margin-bottom:6px;
+}
+#guide-tip .guide-body{font-size:12.5px;color:var(--ink-2);line-height:1.55;margin-bottom:12px}
+#guide-tip .guide-body code{
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+  background:var(--linen-2);padding:1px 5px;border-radius:5px;
+}
+#guide-tip .guide-nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#guide-tip .guide-nav .left{display:flex;gap:8px;align-items:center}
+.guide-nav-btn{
+  font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;
+  background:none;border:1px solid var(--line);border-radius:8px;
+  padding:5px 11px;color:var(--ink-2);transition:border-color .2s,color .2s;
+}
+.guide-nav-btn:hover{border-color:var(--plum);color:var(--plum)}
+.guide-nav-btn.primary{background:var(--ink);color:var(--linen);border-color:var(--ink)}
+.guide-nav-btn.primary:hover{opacity:.88;color:var(--linen)}
+.guide-nav-btn.ghost{border:none}
+.guide-nav-btn:disabled{opacity:.35;cursor:default;border-color:var(--line);color:var(--ink-3)}
+
+/* little pointer arrow on the tooltip */
+#guide-tip .guide-arrow{
+  position:absolute;width:11px;height:11px;background:var(--linen);
+  border:1px solid var(--line);transform:rotate(45deg);
+}
+#guide-tip.arrow-up .guide-arrow{border-right:none;border-bottom:none}
+#guide-tip.arrow-down .guide-arrow{border-left:none;border-top:none}
+#guide-tip.arrow-left .guide-arrow{border-right:none;border-top:none}
+#guide-tip.arrow-right .guide-arrow{border-left:none;border-bottom:none}
+
+/* soft highlight ring drawn around the element a step points at */
+#guide-spot{
+  position:fixed;z-index:55;display:none;pointer-events:none;
+  border:1.5px solid var(--plum);border-radius:14px;
+  box-shadow:0 0 0 9999px rgba(40,30,12,.16);
+  transition:all .22s ease;
+}
+#guide-spot.on{display:block}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="graph"><g id="vp">
+    <g id="edges"></g><g id="nodes"></g>
+  </g></svg>
+</div>
+
+<div id="dock">
+  <div id="title"><span>meaning map</span><button class="tiny-btn" id="btn-settings" style="float:right">space ▸</button></div>
+  <input id="search" placeholder="a word to stand on" autocomplete="off" spellcheck="false">
+  <div id="trail"></div>
+  <div id="status">load the vector file to begin</div>
+
+  <div id="anchors-wrap">
+    <div id="anchors-head">
+      <span class="lab">anchor fields</span>
+      <span>
+        <button class="tiny-btn" id="btn-paste">+ list</button>
+        <button class="tiny-btn" id="btn-gen">+ from word</button>
+      </span>
+    </div>
+    <div id="anchors-list"></div>
+    <div id="add-area"></div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div id="settings-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+    <div class="lab" style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px">semantic space</div>
+    <div id="space-meta" style="font-size:12px;color:var(--ink-2);line-height:1.6"></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="preset" id="btn-load-space">load a different space…</button>
+      <button class="preset" id="btn-reset-space">forget &amp; reload bundled</button>
+    </div>
+    <div style="font-size:10.5px;color:var(--ink-3);margin-top:8px;line-height:1.5">
+      A space is one <code style="font-family:'JetBrains Mono',monospace">space.bin</code> file — its own vocabulary and dimensions. Swap it for a denser one, a larger one, or another language. Remembered in this browser until you change it.
+    </div>
+    <input id="space-filein" type="file" accept=".bin" style="display:none">
+  </div>
+</div>
+
+<div id="bridges"><div class="lab">bridges from here</div><div id="bridges-body"></div></div>
+
+<div id="hint">drag to pan · scroll to zoom · click a word to step onto it</div>
+
+<div id="overlay"><div class="card">
+  <h1>meaning map</h1>
+  <p>Stand on a word, name a few fields you want to reach, and the map finds the
+     shortest chain of meaning to each one — then shows whether each hop actually
+     moves you closer.</p>
+  <p>It runs entirely in your browser. Point it at a semantic space file
+     (<code>space.bin</code>). It's remembered after the first load.</p>
+  <div id="drop">
+    <div class="big">drop space.bin here</div>
+    <div class="sm">or click to choose · stays on your machine</div>
+  </div>
+  <input id="filein" type="file" accept=".bin" style="display:none">
+</div></div>
+
+<!-- ── guide: persistent help button ── -->
+<button id="guide-btn" title="how this works" aria-label="how this works">?</button>
+
+<!-- ── guide: first-run welcome card ── -->
+<div id="guide-welcome"><div class="guide-card">
+  <h2>what this is</h2>
+  <p>Every word here is a point in a space of meaning. Words that mean similar things
+     sit close together; the closeness is measured, not eyeballed.</p>
+  <p>You stand on one word, name a few <b>fields</b> you'd like to reach, and the map
+     hunts for the words sitting in between — the stepping stones from where you are to
+     where you pointed.</p>
+  <p class="guide-try">try this first: type a word, add 2–3 fields you want to connect it to, and watch it find the words in between.</p>
+  <div class="guide-actions">
+    <button class="guide-primary" id="guide-take">take the tour</button>
+    <button class="guide-skip" id="guide-skip">skip — I'll poke around</button>
+  </div>
+</div></div>
+
+<!-- ── guide: stepped tour tooltip + spotlight ── -->
+<div id="guide-spot"></div>
+<div id="guide-tip">
+  <span class="guide-arrow"></span>
+  <div class="guide-step"></div>
+  <div class="guide-h"></div>
+  <div class="guide-body"></div>
+  <div class="guide-nav">
+    <div class="left">
+      <button class="guide-nav-btn" id="guide-back">back</button>
+      <button class="guide-nav-btn primary" id="guide-next">next</button>
+    </div>
+    <button class="guide-nav-btn ghost" id="guide-done">end tour</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════════════
+let V=null, DIM=0, NV=0, words=[], idx=new Map(), spec=null;
+const STOP=new Set('the , . of to and in a " \'s for - ( ) on with as by is was at from that it one its an be this are or he his not have they i'.split(' '));
+const PALETTE=[
+  {k:'plum',s:'#8f84b8',f:'#efecf7'},{k:'oxide',s:'#b58f82',f:'#f6ece8'},
+  {k:'sage',s:'#9aa890',f:'#eef1ea'},{k:'bluegrey',s:'#93a3b5',f:'#eaeff4'},
+  {k:'amber',s:'#cda867',f:'#f7f0df'},{k:'rose',s:'#d4a0a8',f:'#f8edee'},
+];
+
+function buildSpec(){
+  spec=new Float32Array(NV);
+  const d=Math.log1p(NV);
+  for(let i=0;i<NV;i++){let v=Math.log1p(i)/d; spec[i]=Math.min(1,Math.max(0.15,v));}
+}
+
+// dequantise int8 -> normalised Float32 matrix
+function ingest(bin, scale, wlist){
+  words=wlist; NV=words.length; idx=new Map(words.map((w,i)=>[w,i]));
+  DIM=Math.round(bin.length/NV);
+  V=new Float32Array(NV*DIM);
+  for(let i=0;i<NV;i++){
+    let off=i*DIM, n=0;
+    for(let d=0;d<DIM;d++){const v=bin[off+d]*scale/127; V[off+d]=v; n+=v*v;}
+    n=Math.sqrt(n)||1;
+    for(let d=0;d<DIM;d++) V[off+d]/=n;   // re-normalise after dequant
+  }
+  buildSpec();
+}
+
+// ════════════════════════════════════════════════════════════
+//  ENGINE  (mirrors the validated python: NN, expand, bridge, path)
+// ════════════════════════════════════════════════════════════
+function dot(i,j){let a=i*DIM,b=j*DIM,s=0;for(let d=0;d<DIM;d++)s+=V[a+d]*V[b+d];return s;}
+
+const nnCache=new Map();
+function nn(i,k=36){
+  const ck=i+':'+k; if(nnCache.has(ck))return nnCache.get(ck);
+  const ai=i*DIM;
+  // single pass, keep best k via small insertion (k is tiny)
+  const best=[]; let worst=-2;
+  for(let j=0;j<NV;j++){
+    if(j===i)continue;
+    let s=0,bj=j*DIM; for(let d=0;d<DIM;d++)s+=V[ai+d]*V[bj+d];
+    if(best.length<k+12){best.push([j,s]); if(best.length===k+12){best.sort((a,b)=>a[1]-b[1]);worst=best[0][1];}}
+    else if(s>worst){best[0]=[j,s];best.sort((a,b)=>a[1]-b[1]);worst=best[0][1];}
+  }
+  best.sort((a,b)=>b[1]-a[1]);
+  const out=[];
+  for(const [j,s] of best){ if(STOP.has(words[j]))continue; out.push([j,s]); if(out.length>=k)break; }
+  nnCache.set(ck,out); return out;
+}
+
+function expand(seed,hops=2,k=36){
+  const seen=new Map([[seed,[1,0]]]); let cur=[seed];
+  for(let h=1;h<=hops;h++){
+    const nx=[];
+    for(const i of cur) for(const [j,s] of nn(i,k))
+      if(!seen.has(j)){seen.set(j,[s,h]);nx.push(j);}
+    cur=nx;
+  }
+  return seen;
+}
+
+// best balanced, non-hub meeting nodes between current and an anchor
+function bridges(ci,ai,hops=2,k=36){
+  const cc=expand(ci,hops,k), ac=expand(ai,hops,k), out=[];
+  for(const n of cc.keys()){
+    if(!ac.has(n)||n===ci||n===ai)continue;
+    const cs=cc.get(n)[0], as=ac.get(n)[0];
+    const conj=Math.min(cs,as), bal=1-Math.abs(cs-as);
+    out.push([n, conj*(0.5+0.5*bal)*spec[n], cs, as]);
+  }
+  out.sort((a,b)=>b[1]-a[1]);
+  return out;
+}
+
+// greedy walk a -> b through neighbours (the drawable skeleton leg)
+function walk(a,b,k=36,max=6){
+  let cur=a; const path=[a], seen=new Set([a]);
+  for(let s=0;s<max;s++){
+    if(cur===b)break;
+    let best=-1,bw=-9;
+    for(const [j] of nn(cur,k)){
+      if(seen.has(j))continue;
+      const w=dot(j,b)*(0.6+0.4*spec[j]);
+      if(w>bw){bw=w;best=j;}
+    }
+    if(best<0)break; cur=best; seen.add(cur); path.push(cur);
+    if(cur===b)break;
+  }
+  if(path[path.length-1]!==b)path.push(b);
+  return path;
+}
+
+// sense-split signal: do a word's top neighbours fall into >1 loose cluster?
+function senseSplit(i){
+  const ns=nn(i,12).map(x=>x[0]); if(ns.length<6)return false;
+  // average pairwise similarity among top neighbours; low coherence => polysemy
+  let s=0,c=0;
+  for(let a=0;a<ns.length;a++)for(let b=a+1;b<ns.length;b++){s+=dot(ns[a],ns[b]);c++;}
+  return (s/c)<0.34;
+}
+
+// ════════════════════════════════════════════════════════════
+//  STATE + LAYOUT
+// ════════════════════════════════════════════════════════════
+let current=null, anchors=[], trail=[];
+let G={nodes:[],edges:[]};
+const W=()=>document.getElementById('graph').clientWidth;
+const H=()=>document.getElementById('graph').clientHeight;
+
+function setStatus(t){document.getElementById('status').textContent=t;}
+
+function explore(word){
+  if(!V)return;
+  word=(word||'').toLowerCase().trim();
+  if(!idx.has(word)){
+    // nearest spelling? just report
+    setStatus(`"${word}" is not in this vocabulary`); return;
+  }
+  if(current && current!==word) trail.push(current);
+  current=word;
+  document.getElementById('search').value=word;
+  renderTrail();
+  buildGraph();
+  renderBridges();
+  setStatus(`${G.nodes.length} words in view · ${anchors.length} anchor field${anchors.length===1?'':'s'}`);
+}
+
+function buildGraph(){
+  const ci=idx.get(current);
+  const nodes=new Map();   // wordIndex -> node
+  const edges=[];
+  const cx=W()/2, cy=H()/2;
+
+  function ensure(i,kind){
+    if(!nodes.has(i)){
+      nodes.set(i,{i,w:words[i],kind,
+        x:cx+(Math.random()-.5)*60,y:cy+(Math.random()-.5)*60,vx:0,vy:0,
+        fx:null,fy:null,anchor:null});
+    }
+    const nd=nodes.get(i);
+    if(kind==='cur') nd.kind='cur';
+    else if(kind==='anchor'&&nd.kind!=='cur') nd.kind='anchor';
+    else if(kind==='bridge'&&nd.kind==='neighbour') nd.kind='bridge';
+    return nd;
+  }
+
+  // current at centre, pinned
+  const curN=ensure(ci,'cur'); curN.fx=cx; curN.fy=cy;
+
+  // local neighbours of current
+  for(const [j] of nn(ci,14)) { ensure(j,'neighbour'); edges.push([ci,j,false]); }
+
+  // anchors pinned on a ring; each with a small lit cluster + a skeleton path
+  anchors.forEach((a,k)=>{
+    if(!idx.has(a.word))return;
+    const ang=(k/Math.max(anchors.length,1))*2*Math.PI - Math.PI/2;
+    const R=Math.min(W(),H())*0.40;
+    const ax=cx+Math.cos(ang)*R, ay=cy+Math.sin(ang)*R;
+    const aIdx=idx.get(a.word);
+    const aN=ensure(aIdx,'anchor'); aN.fx=ax; aN.fy=ay; aN.anchor=k;
+
+    // lit cluster around the anchor
+    for(const [j] of nn(aIdx,6)){ const n=ensure(j,'neighbour'); if(n.anchor==null)n.anchor=k; edges.push([aIdx,j,false]); }
+
+    // skeleton: pick best bridge, draw the two legs as highlighted path
+    const br=bridges(ci,aIdx);
+    a._bridge = br.length? br[0] : null;
+    const bridgeIdx = br.length? br[0][0] : aIdx;
+    if(br.length){ const bn=ensure(bridgeIdx,'bridge'); if(bn.anchor==null)bn.anchor=k; }
+    const leg1=walk(ci,bridgeIdx), leg2=walk(bridgeIdx,aIdx);
+    const full=leg1.concat(leg2.slice(1));
+    a._path=full;
+    for(let p=0;p<full.length-1;p++){
+      const u=full[p],v=full[p+1];
+      const un=ensure(u, u===ci?'cur':(u===aIdx?'anchor':(u===bridgeIdx?'bridge':'neighbour')));
+      if(un.anchor==null && u!==ci) un.anchor=k;
+      ensure(v, v===aIdx?'anchor':(v===bridgeIdx?'bridge':'neighbour'));
+      edges.push([u,v,true]);   // skeleton edge
+    }
+  });
+
+  G.nodes=[...nodes.values()];
+  G.edges=edges.filter(([u,v])=>nodes.has(u)&&nodes.has(v));
+  runForce();
+}
+
+// hand-rolled force layout (small graph, naive O(n^2) is fine)
+let raf=null;
+function runForce(){
+  if(raf)cancelAnimationFrame(raf);
+  const nodes=G.nodes, edges=G.edges;
+  const cx=W()/2, cy=H()/2;
+  let alpha=1;
+  function tick(){
+    alpha*=0.96;
+    // repulsion
+    for(let a=0;a<nodes.length;a++){
+      const na=nodes[a];
+      for(let b=a+1;b<nodes.length;b++){
+        const nb=nodes[b];
+        let dx=na.x-nb.x, dy=na.y-nb.y, d2=dx*dx+dy*dy+0.01;
+        const f=1400/d2;
+        const d=Math.sqrt(d2);
+        const fx=dx/d*f, fy=dy/d*f;
+        na.vx+=fx;na.vy+=fy;nb.vx-=fx;nb.vy-=fy;
+      }
+    }
+    // springs
+    for(const [u,v,skel] of edges){
+      const a=G._byi[u], b=G._byi[v]; if(!a||!b)continue;
+      let dx=b.x-a.x, dy=b.y-a.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      const rest=skel?78:120, f=(d-rest)*(skel?0.06:0.02);
+      const fx=dx/d*f, fy=dy/d*f;
+      a.vx+=fx;a.vy+=fy;b.vx-=fx;b.vy-=fy;
+    }
+    // integrate
+    for(const n of nodes){
+      if(n.fx!=null){n.x=n.fx;n.y=n.fy;n.vx=0;n.vy=0;continue;}
+      n.vx*=0.84;n.vy*=0.84;
+      n.x+=n.vx*alpha;n.y+=n.vy*alpha;
+    }
+    draw();
+    if(alpha>0.02) raf=requestAnimationFrame(tick);
+  }
+  G._byi=Object.fromEntries(nodes.map(n=>[n.i,n]));
+  tick();
+}
+
+// ════════════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════════════
+function anchorColor(k){return PALETTE[k%PALETTE.length];}
+function draw(){
+  const eG=document.getElementById('edges'), nG=document.getElementById('nodes');
+  let eh='';
+  for(const [u,v,skel] of G.edges){
+    const a=G._byi[u], b=G._byi[v]; if(!a||!b)continue;
+    let col='var(--line)';
+    if(skel){ const k=(a.anchor??b.anchor); col=k!=null?anchorColor(k).s:'var(--ink-3)'; }
+    eh+=`<line class="edge ${skel?'skel':''}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${col}"/>`;
+  }
+  eG.innerHTML=eh;
+
+  let nh='';
+  for(const n of G.nodes){
+    let r=n.kind==='cur'?7:(n.kind==='anchor'?6.5:(n.kind==='bridge'?5.5:4));
+    let fill='var(--linen)', stroke='var(--line)', sw=1, cls=n.kind;
+    if(n.kind==='cur'){fill='var(--ink)';stroke='none';}
+    else if(n.anchor!=null){const c=anchorColor(n.anchor);
+      fill = (n.kind==='anchor')?c.s:(n.kind==='bridge'?c.f:'var(--linen)');
+      stroke=c.s; sw=n.kind==='anchor'?0:(n.kind==='bridge'?1.6:1);}
+    const showLabel = n.kind!=='neighbour' || n.anchor!=null || true;
+    nh+=`<g class="node ${cls}" data-w="${n.w}" transform="translate(${n.x},${n.y})">
+      <circle r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"></circle>
+      ${showLabel?`<text dy="${r+9}">${esc(n.w)}</text>`:''}
+    </g>`;
+  }
+  nG.innerHTML=nh;
+}
+
+function renderTrail(){
+  const t=document.getElementById('trail');
+  const recent=trail.slice(-3);
+  let h=recent.map(w=>`<span class="crumb" data-w="${w}">${esc(w)}</span>`).join('<span>/</span>');
+  if(h)h+='<span>/</span>';
+  h+=`<span class="crumb now">${esc(current||'')}</span>`;
+  t.innerHTML=h;
+}
+
+function renderAnchors(){
+  const L=document.getElementById('anchors-list');
+  if(!anchors.length){L.innerHTML=`<div style="font-size:11.5px;color:var(--ink-3)">none yet — add a field to find bridges toward it.</div>`;}
+  else L.innerHTML=anchors.map((a,k)=>{
+    const c=anchorColor(k);
+    let pct=0;
+    if(V&&current&&idx.has(a.word)&&idx.has(current)) pct=Math.max(0,Math.round(dot(idx.get(current),idx.get(a.word))*100));
+    return `<div class="anchor-row">
+      <span class="dot" style="background:${c.s}"></span>
+      <span class="nm">${esc(a.word)}</span>
+      <span class="gauge"><i style="width:${pct}%;background:${c.s}"></i></span>
+      <span class="pct">${pct}</span>
+      <span class="x" data-k="${k}">×</span>
+    </div>`;
+  }).join('');
+  // gauges double as the "am I getting closer" meter
+}
+
+function renderBridges(){
+  const box=document.getElementById('bridges'), body=document.getElementById('bridges-body');
+  if(!anchors.length){box.style.display='none';return;}
+  box.style.display='block';
+  body.innerHTML=anchors.map((a,k)=>{
+    const c=anchorColor(k);
+    if(!idx.has(a.word))return `<div class="bridge-block"><div class="to">${esc(a.word)}</div><div class="skel">not in vocabulary</div></div>`;
+    const path=a._path||[];
+    const skel=path.map((pi,n)=>{
+      const w=words[pi];
+      const sep=n<path.length-1?'<span class="arrow">→</span>':'';
+      return `<span class="hop" data-w="${w}" style="${pi===idx.get(a.word)?'color:'+c.s+';font-weight:600':''}">${esc(w)}</span>${sep}`;
+    }).join('');
+    const split = a._bridge && senseSplit(a._bridge[0]);
+    return `<div class="bridge-block">
+      <div class="to" style="color:${c.s}">→ ${esc(a.word)}</div>
+      <div class="skel">${skel||'no path found'}</div>
+      ${split?`<div class="note">passes a word with split senses — the route may not mean what it reads</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+// ════════════════════════════════════════════════════════════
+//  ANCHORS: add / remove / presets
+// ════════════════════════════════════════════════════════════
+function addAnchor(word){
+  word=word.toLowerCase().trim(); if(!word)return;
+  if(anchors.some(a=>a.word===word))return;
+  anchors.push({word}); renderAnchors();
+  if(current)explore(current);
+}
+function removeAnchor(k){anchors.splice(k,1);renderAnchors();if(current)explore(current);}
+
+function showAdd(mode){
+  const a=document.getElementById('add-area'); a.style.display='block';
+  if(mode==='paste'){
+    a.innerHTML=`<input id="ad1" placeholder="anchor word (one field)"><button class="preset" id="adGo">add field</button>`;
+    document.getElementById('adGo').onclick=()=>{addAnchor(document.getElementById('ad1').value);a.style.display='none';};
+  }else{
+    a.innerHTML=`<input id="ad1" placeholder="seed word — its neighbourhood becomes the field"><button class="preset" id="adGo">add field</button>`;
+    document.getElementById('adGo').onclick=()=>{addAnchor(document.getElementById('ad1').value);a.style.display='none';};
+  }
+  setTimeout(()=>document.getElementById('ad1')?.focus(),30);
+}
+
+const PRESETS=[
+  {label:'four elements', a:['earth','water','fire','air'], start:'storm'},
+  {label:'states of mind', a:['calm','fury','longing','wonder'], start:'memory'},
+  {label:'materials', a:['stone','glass','iron','timber'], start:'bridge'},
+  {label:'light & dark', a:['dawn','dusk','shadow','flame'], start:'threshold'},
+];
+function loadPreset(p){
+  anchors=p.a.map(w=>({word:w}));
+  renderAnchors(); explore(p.start);
+}
+function renderPresets(){
+  document.getElementById('presets').innerHTML=PRESETS.map((p,i)=>`<span class="preset" data-p="${i}">${p.label}</span>`).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+//  PAN / ZOOM / INTERACTION
+// ════════════════════════════════════════════════════════════
+let view={x:0,y:0,s:1};
+const vp=()=>document.getElementById('vp');
+function applyView(){vp().setAttribute('transform',`translate(${view.x},${view.y}) scale(${view.s})`);}
+const svg=document.getElementById('graph');
+let panning=false,last=null;
+svg.addEventListener('mousedown',e=>{if(e.target.closest('.node'))return;panning=true;last={x:e.clientX,y:e.clientY};svg.classList.add('drag');});
+window.addEventListener('mousemove',e=>{if(!panning)return;view.x+=e.clientX-last.x;view.y+=e.clientY-last.y;last={x:e.clientX,y:e.clientY};applyView();});
+window.addEventListener('mouseup',()=>{panning=false;svg.classList.remove('drag');});
+svg.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.1:0.9;
+  const r=svg.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  view.x=mx-(mx-view.x)*f;view.y=my-(my-view.y)*f;view.s*=f;applyView();},{passive:false});
+
+// clicks (event delegation) — recenter on any word
+document.body.addEventListener('click',e=>{
+  const node=e.target.closest('.node'); if(node){explore(node.dataset.w);return;}
+  const hop=e.target.closest('.hop'); if(hop){explore(hop.dataset.w);return;}
+  const crumb=e.target.closest('.crumb'); if(crumb&&crumb.dataset.w){explore(crumb.dataset.w);return;}
+  const x=e.target.closest('.anchor-row .x'); if(x){removeAnchor(+x.dataset.k);return;}
+  const pr=e.target.closest('.preset[data-p]'); if(pr){loadPreset(PRESETS[+pr.dataset.p]);return;}
+});
+document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter')explore(e.target.value);});
+document.getElementById('btn-paste').onclick=()=>showAdd('paste');
+document.getElementById('btn-gen').onclick=()=>showAdd('gen');
+
+// ── settings / semantic space panel ──
+function renderSettings(){
+  const m=document.getElementById('space-meta');
+  if(!m)return;
+  m.innerHTML = V
+    ? `<b>${esc(spaceInfo.name||'space')}</b> · ${spaceInfo.source}<br>${(spaceInfo.vocab||NV).toLocaleString()} words · ${spaceInfo.dims||DIM} dimensions`
+    : 'no space loaded';
+}
+document.getElementById('btn-settings').onclick=()=>{
+  const w=document.getElementById('settings-wrap');
+  const open=w.style.display==='none';
+  w.style.display=open?'block':'none';
+  document.getElementById('btn-settings').textContent=open?'space ▾':'space ▸';
+  if(open)renderSettings();
+};
+document.getElementById('btn-load-space').onclick=()=>document.getElementById('space-filein').click();
+document.getElementById('space-filein').addEventListener('change',e=>handleFiles(e.target.files));
+document.getElementById('btn-reset-space').onclick=async()=>{
+  await cacheClear();
+  const ok=await tryFetchBundled();
+  if(!ok){ restoreOverlay(); setStatus('bundled space not found — drop a space.bin'); }
+};
+
+// ════════════════════════════════════════════════════════════
+//  LOADING THE SEMANTIC SPACE  (one self-describing space.bin)
+//  order: cached (IndexedDB) -> bundled sibling -> file picker
+// ════════════════════════════════════════════════════════════
+let spaceInfo={name:'—',source:'—'};
+const ORIG_OVERLAY=document.getElementById('overlay').innerHTML;
+function restoreOverlay(){
+  const o=document.getElementById('overlay');
+  o.style.display='flex'; o.innerHTML=ORIG_OVERLAY; wirePicker();
+}
+
+// parse a space.bin ArrayBuffer -> {dims,vocab,scale,words,vecs(Int8Array)}
+function parseSpace(buf){
+  const dv=new DataView(buf);
+  const magic=String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3));
+  if(magic!=='MMAP') throw new Error('not a meaning-map space file');
+  let o=4;
+  const ver=dv.getUint8(o); o+=1;
+  const dims=dv.getUint16(o,true); o+=2;
+  const vocab=dv.getUint32(o,true); o+=4;
+  const scale=dv.getFloat32(o,true); o+=4;
+  const wlen=dv.getUint32(o,true); o+=4;
+  const words=new TextDecoder().decode(new Uint8Array(buf,o,wlen)).split('\n'); o+=wlen;
+  const vecs=new Int8Array(buf,o,vocab*dims);
+  return {dims,vocab,scale,words,vecs};
+}
+
+async function boot(buf, name, source){
+  const sp=parseSpace(buf);   // parse first; a bad file throws before we touch the UI
+  const o=document.getElementById('overlay');
+  o.style.display='flex';
+  o.innerHTML=`<div class="card"><h1><span class="spin"></span>building the field…</h1></div>`;
+  await new Promise(r=>setTimeout(r,30));
+  nnCache.clear();
+  ingest(sp.vecs, sp.scale, sp.words);
+  spaceInfo={name:name||'space', source:source||'loaded', dims:sp.dims, vocab:sp.vocab};
+  o.style.display='none';
+  renderAnchors(); renderPresets(); renderSettings();
+  trail=[]; current=null;
+  setStatus(`${NV.toLocaleString()} words · ${DIM} dimensions`);
+  loadPreset(PRESETS[1]);
+}
+
+// ── IndexedDB: cache the active space so first load is the only load ──
+const DB='meaningmap', STORE='space';
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
+async function cacheGet(){try{const db=await idb();return await new Promise((res)=>{
+  const t=db.transaction(STORE).objectStore(STORE).get('active');
+  t.onsuccess=()=>res(t.result||null); t.onerror=()=>res(null);});}catch(e){return null;}}
+async function cachePut(buf,name){try{const db=await idb();const t=db.transaction(STORE,'readwrite');
+  t.objectStore(STORE).put({buf,name,at:Date.now()},'active');}catch(e){}}
+async function cacheClear(){try{const db=await idb();db.transaction(STORE,'readwrite').objectStore(STORE).delete('active');}catch(e){}}
+
+// ── picker / drop (accepts a single space.bin) ──
+function wirePicker(){
+  const drop=document.getElementById('drop'), fin=document.getElementById('filein');
+  drop.onclick=()=>fin.click();
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',e=>{e.preventDefault();handleFiles(e.dataTransfer.files);});
+  fin.addEventListener('change',()=>handleFiles(fin.files));
+}
+async function handleFiles(list){
+  const f=[...list].find(f=>f.name.endsWith('.bin'));
+  if(!f){setStatus('drop a space.bin file');return;}
+  const buf=await f.arrayBuffer();
+  try{ await boot(buf, f.name, 'loaded file'); await cachePut(buf.slice(0), f.name); }
+  catch(e){ restoreOverlay(); setStatus('could not read that file: '+e.message); }
+}
+
+async function tryFetchBundled(){
+  try{ const r=await fetch('./space.bin'); if(!r.ok)throw 0;
+    const buf=await r.arrayBuffer(); await boot(buf,'space.bin','bundled');
+    await cachePut(buf.slice(0),'space.bin'); return true;
+  }catch(e){return false;}
+}
+
+(async function init(){
+  wirePicker();
+  const cached=await cacheGet();
+  if(cached&&cached.buf){ try{await boot(cached.buf, cached.name, 'remembered'); return;}catch(e){} }
+  const ok=await tryFetchBundled();
+  // else: overlay/picker stays up for the first manual load
+})();
+
+// ════════════════════════════════════════════════════════════
+//  GUIDE / TOUR  (additive — namespaced, touches nothing above)
+//  welcome card on first run · persistent ? button · stepped tour
+// ════════════════════════════════════════════════════════════
+(function(){
+  const SEEN_KEY='meaningmap.tourSeen';   // tiny UI flag only; the space lives in IndexedDB
+  const $=id=>document.getElementById(id);
+  const welcome=$('guide-welcome'), tip=$('guide-tip'), spot=$('guide-spot');
+  const stepEl=tip.querySelector('.guide-step'), hEl=tip.querySelector('.guide-h'),
+        bodyEl=tip.querySelector('.guide-body'), arrow=tip.querySelector('.guide-arrow');
+
+  // each step tethers to a REAL element; copy is concrete + plain.
+  // optional() steps gracefully skip when their target isn't on screen yet.
+  const STEPS=[
+    { sel:'#search', side:'right',
+      title:'the word you stand on',
+      body:`This is home base. Type a word here and press enter to step onto it — the map redraws around it. Right now you're standing on whatever the example loaded.` },
+    { sel:'#anchors-head', side:'right',
+      title:'the fields you aim for',
+      body:`Name a few "fields" you want to reach. <code>+ list</code> adds one word; <code>+ from word</code> uses a word's whole neighbourhood as the field. Each field gets its own colour.` },
+    { sel:()=>document.querySelector('.anchor-row') || $('anchors-list'), side:'right',
+      title:'the honest distance gauge',
+      body:`That bar and the number are the real cosine distance from where you stand to the field — not a guess, not a vibe. Step onto a word along a chain and it moves. It measures, so it can't fake progress.` },
+    { sel:'#bridges', side:'left', optional:true,
+      title:'the words in between',
+      altBody:`Once you've got a field, a panel appears on the right showing the chain to it — your word, then the stepping stones, then the field. The middle word is the <b>bridge</b>: the one that sits in both neighbourhoods at once and ties the two ends together.`,
+      body:`This is the chain to each field: your word → stepping stones → the field. The word in the middle is the <b>bridge</b> — it sits in both neighbourhoods at once and ties the two ends together. Click any word in the chain to step onto it.` },
+    { sel:()=>document.querySelector('.bridge-block .note'), side:'left', optional:true,
+      title:'when a word means two things',
+      body:`Sometimes a bridge word is two-faced — like "fire" (flame vs gunfire). When its own neighbours don't agree on a meaning, this note warns you the route may not mean what it reads.`,
+      skipNote:`Some bridges raise a sense-split warning — when a word means two different things, the route through it may not mean what it reads. None showed up in this example, so there's nothing to point at right now.` },
+    { sel:'#hint', side:'up',
+      title:'moving around',
+      body:`Drag the background to pan, scroll to zoom, and click any word on the map to step onto it. The breadcrumb under the search remembers where you've been.` },
+    { sel:'#guide-btn', side:'up',
+      title:`that's the tour`,
+      body:`This <b>?</b> is always down here — open this again anytime. Now go pick a word and aim it somewhere.` },
+  ];
+
+  let i=0, order=[];
+
+  function resolve(sel){
+    if(typeof sel==='function'){ try{return sel();}catch(e){return null;} }
+    return document.querySelector(sel);
+  }
+  function visible(el){
+    if(!el)return false;
+    const r=el.getBoundingClientRect();
+    return r.width>0 && r.height>0 && r.bottom>0 && r.right>0
+        && r.top<innerHeight && r.left<innerWidth
+        && getComputedStyle(el).visibility!=='hidden';
+  }
+
+  function placeTip(el, side){
+    const r=el.getBoundingClientRect();
+    tip.classList.remove('arrow-up','arrow-down','arrow-left','arrow-right');
+    // measure tooltip after content is set
+    const tw=tip.offsetWidth, th=tip.offsetHeight, gap=14, pad=10;
+    let x, y, aClass, ax, ay;
+    if(side==='right'){ x=r.right+gap; y=r.top+r.height/2-th/2; aClass='arrow-left'; }
+    else if(side==='left'){ x=r.left-gap-tw; y=r.top+r.height/2-th/2; aClass='arrow-right'; }
+    else if(side==='up'){ x=r.left+r.width/2-tw/2; y=r.top-gap-th; aClass='arrow-down'; }
+    else { x=r.left+r.width/2-tw/2; y=r.bottom+gap; aClass='arrow-up'; }
+    // clamp into viewport
+    x=Math.max(pad,Math.min(x,innerWidth-tw-pad));
+    y=Math.max(pad,Math.min(y,innerHeight-th-pad));
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+    tip.classList.add(aClass);
+    // arrow position: point back at the element centre
+    if(aClass==='arrow-left'||aClass==='arrow-right'){
+      ay=Math.max(8,Math.min(r.top+r.height/2-y-5.5, th-18));
+      arrow.style.top=ay+'px';
+      arrow.style.left=(aClass==='arrow-left'?-6:tw-5)+'px';
+    }else{
+      ax=Math.max(8,Math.min(r.left+r.width/2-x-5.5, tw-18));
+      arrow.style.left=ax+'px';
+      arrow.style.top=(aClass==='arrow-up'?-6:th-5)+'px';
+    }
+    // spotlight ring
+    const m=6;
+    spot.style.left=(r.left-m)+'px'; spot.style.top=(r.top-m)+'px';
+    spot.style.width=(r.width+m*2)+'px'; spot.style.height=(r.height+m*2)+'px';
+    spot.classList.add('on');
+  }
+
+  function buildOrder(){
+    // resolve which steps are showable now; keep optional ones with a fallback message
+    order=[];
+    for(const s of STEPS){
+      const el=resolve(s.sel);
+      if(visible(el)) order.push({s,el,mode:'live'});
+      else if(s.optional && (s.altBody||s.skipNote)) order.push({s,el:null,mode:'skip'});
+      // non-optional missing steps are dropped silently (shouldn't happen for fixed UI)
+    }
+  }
+
+  function show(){
+    const item=order[i]; if(!item){end();return;}
+    const s=item.s;
+    stepEl.textContent=`step ${i+1} of ${order.length}`;
+    hEl.textContent=s.title;
+    if(item.mode==='live'){
+      bodyEl.innerHTML=s.body;
+    }else{
+      bodyEl.innerHTML=s.altBody || s.skipNote;
+    }
+    $('guide-back').disabled = i===0;
+    $('guide-next').textContent = i===order.length-1 ? 'done' : 'next';
+    tip.classList.add('on');
+    if(item.mode==='live' && item.el){
+      // ensure tooltip dimensions are current before placing
+      tip.style.left='-9999px'; tip.style.top='-9999px';
+      requestAnimationFrame(()=>placeTip(item.el, s.side));
+    }else{
+      // centred, no spotlight, for skipped-target steps
+      spot.classList.remove('on');
+      tip.classList.remove('arrow-up','arrow-down','arrow-left','arrow-right');
+      requestAnimationFrame(()=>{
+        tip.style.left=(innerWidth/2-tip.offsetWidth/2)+'px';
+        tip.style.top=(innerHeight/2-tip.offsetHeight/2)+'px';
+      });
+    }
+  }
+
+  function startTour(){
+    welcome.classList.remove('on');
+    markSeen();
+    buildOrder();
+    i=0; show();
+  }
+  function next(){ if(i<order.length-1){i++;show();} else end(); }
+  function back(){ if(i>0){i--;show();} }
+  function end(){ tip.classList.remove('on'); spot.classList.remove('on'); }
+
+  function markSeen(){ try{localStorage.setItem(SEEN_KEY,'1');}catch(e){} }
+  function hasSeen(){ try{return localStorage.getItem(SEEN_KEY)==='1';}catch(e){return false;} }
+
+  function openWelcome(){ end(); welcome.classList.add('on'); }
+  function closeWelcome(){ welcome.classList.remove('on'); markSeen(); }
+
+  // wiring
+  $('guide-take').onclick=startTour;
+  $('guide-skip').onclick=closeWelcome;
+  $('guide-next').onclick=next;
+  $('guide-back').onclick=back;
+  $('guide-done').onclick=end;
+  $('guide-btn').onclick=openWelcome;
+  // dim-click closes the welcome (but not the inner card)
+  welcome.addEventListener('click',e=>{ if(e.target===welcome) closeWelcome(); });
+  // esc bails out of either layer
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape')return;
+    if(tip.classList.contains('on')) end();
+    else if(welcome.classList.contains('on')) closeWelcome();
+  });
+  // keep an open tooltip glued to its element on resize
+  addEventListener('resize',()=>{ if(tip.classList.contains('on')) show(); });
+
+  // first-run: wait until the space has actually loaded (V set by boot()),
+  // then show the welcome once. Don't fight the loader #overlay.
+  if(!hasSeen()){
+    let tries=0;
+    const t=setInterval(()=>{
+      tries++;
+      const loaderUp=$('overlay').style.display!=='none';
+      if(typeof V!=='undefined' && V && !loaderUp){
+        clearInterval(t); openWelcome();
+      }else if(tries>120){ clearInterval(t); }   // ~30s safety cap
+    },250);
+  }
+})();
+</script>
+</body>
+</html>

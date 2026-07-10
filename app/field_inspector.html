@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>field inspector — what a field really looks like</title>
+<style>
+  :root{
+    --linen:#f8f6f1; --linen-2:#f1ede4; --linen-3:#e8e2d6;
+    --line:#d9d2c4; --ink:#1a1713; --ink-2:#6f665a; --ink-3:#a89e8e;
+    --plum:#8f84b8; --oxide:#b58f82; --sage:#9aa890; --amber:#cda867;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--linen);color:var(--ink);
+    font-family:Inter,-apple-system,system-ui,sans-serif;font-size:14px;line-height:1.5}
+  .mono{font-family:'JetBrains Mono',ui-monospace,Menlo,monospace}
+  header{padding:22px 28px 14px;border-bottom:1px solid var(--line)}
+  h1{font-family:Fraunces,Georgia,serif;font-size:22px;margin:0 0 4px;font-weight:600}
+  .sub{color:var(--ink-2);font-size:13px;max-width:760px}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px 28px;border-bottom:1px solid var(--line)}
+  input[type=text]{font:inherit;padding:8px 12px;border:1px solid var(--line);border-radius:7px;
+    background:#fff;min-width:200px}
+  button{font:inherit;padding:8px 14px;border:1px solid var(--line);border-radius:7px;
+    background:var(--linen-2);cursor:pointer}
+  button:hover{background:var(--linen-3)}
+  .slider{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+  .slider input{width:120px}
+  .status{padding:10px 28px;color:var(--ink-2);font-size:12px}
+  main{padding:8px 28px 60px}
+  section{margin:22px 0;}
+  .sech{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+  .note{color:var(--ink-2);font-size:12.5px;max-width:780px;margin:4px 0 12px}
+  /* falloff curve */
+  #curveWrap{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
+  /* three-column compare */
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .col h3{margin:0 0 2px;font-family:Fraunces,serif;font-size:15px;font-weight:600}
+  .col .desc{color:var(--ink-2);font-size:11.5px;margin-bottom:8px;min-height:30px}
+  .row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px}
+  .row .rk{width:20px;text-align:right;color:var(--ink-3);font-size:10px}
+  .row .wd{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .bar{flex:0 0 70px;height:5px;background:var(--linen-3);border-radius:3px;overflow:hidden}
+  .row .bar i{display:block;height:100%;border-radius:3px}
+  .row .pc{width:32px;text-align:right;font-size:10px;color:var(--ink-2)}
+  .tag{font-size:9px;padding:1px 4px;border-radius:4px;background:var(--linen-3);color:var(--ink-3);margin-left:3px}
+  .tag.var{background:#f6ece8;color:var(--oxide)}
+  .tag.hub{background:#f7f0df;color:#9c7f3a}
+  .metric{display:inline-block;margin-right:20px;font-size:12.5px}
+  .metric b{font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--ink)}
+  .empty{color:var(--ink-3);padding:40px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>field inspector</h1>
+  <div class="sub">An exercise, not the tool. Type a word — its "field" is its whole cosine
+  neighbourhood. This shows the <b>full falloff</b> (is there ever a natural cutoff?), and three
+  rival ways to pick which words represent the field. The point is to decide what "helpful" means
+  before picking a number.</div>
+</header>
+
+<div class="controls">
+  <input type="text" id="w" placeholder="a word — e.g. water, memory, iron" autocomplete="off">
+  <button id="go">inspect</button>
+  <div class="slider">k <input type="range" id="k" min="6" max="60" value="20"><span id="kv" class="mono">20</span></div>
+  <div class="slider">MMR λ <input type="range" id="lam" min="0" max="100" value="55"><span id="lamv" class="mono">0.55</span></div>
+  <label class="slider"><input type="checkbox" id="stop"> show stopwords/hubs</label>
+</div>
+<div class="status mono" id="status">loading space…</div>
+
+<main id="main"><div class="empty">load a space, then inspect a word.</div></main>
+
+<script>
+// ── space loader (same format + math as the main tool) ─────────────
+let V=null, DIM=0, NV=0, words=[], idx=new Map(), spec=null;
+
+function parseSpace(buf){
+  const dv=new DataView(buf);
+  const magic=String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3));
+  if(magic!=='MMAP') throw new Error('not a meaning-map space file');
+  let o=4;
+  o+=1;                                   // version
+  const dims=dv.getUint16(o,true); o+=2;
+  const vocab=dv.getUint32(o,true); o+=4;
+  const scale=dv.getFloat32(o,true); o+=4;
+  const wlen=dv.getUint32(o,true); o+=4;
+  const wl=new TextDecoder().decode(new Uint8Array(buf,o,wlen)).split('\n'); o+=wlen;
+  const vecs=new Int8Array(buf,o,vocab*dims);
+  return {dims,vocab,scale,words:wl,vecs};
+}
+function ingest(bin,scale,wl){
+  words=wl; NV=words.length; idx=new Map(words.map((w,i)=>[w,i]));
+  DIM=Math.round(bin.length/NV);
+  V=new Float32Array(NV*DIM);
+  for(let i=0;i<NV;i++){
+    let off=i*DIM,n=0;
+    for(let d=0;d<DIM;d++){const v=bin[off+d]*scale/127; V[off+d]=v; n+=v*v;}
+    n=Math.sqrt(n)||1;
+    for(let d=0;d<DIM;d++) V[off+d]/=n;
+  }
+  spec=new Float32Array(NV);
+  const dN=Math.log1p(NV);
+  for(let i=0;i<NV;i++){let v=Math.log1p(i)/dN; spec[i]=Math.min(1,Math.max(0.15,v));}
+}
+function dot(i,j){let a=i*DIM,b=j*DIM,s=0;for(let d=0;d<DIM;d++)s+=V[a+d]*V[b+d];return s;}
+
+const STOP=new Set('the , . of to and in a " \'s for - ( ) on with as by is was at from that it one its an be this are or he his not have they i'.split(' '));
+
+// full ranked neighbourhood of a word (NOT capped). returns [[idx,sim],…] desc.
+function fullRank(i, includeStop){
+  const out=[];
+  const ai=i*DIM;
+  for(let j=0;j<NV;j++){
+    if(j===i)continue;
+    if(!includeStop && STOP.has(words[j]))continue;
+    let s=0,bj=j*DIM; for(let d=0;d<DIM;d++)s+=V[ai+d]*V[bj+d];
+    out.push([j,s]);
+  }
+  out.sort((a,b)=>b[1]-a[1]);
+  return out;
+}
+// maximal marginal relevance: spread across sub-senses instead of piling on synonyms.
+function mmr(cand, k, lambda){
+  const chosen=[]; const pool=cand.slice(0, Math.min(cand.length,300));
+  while(chosen.length<k && pool.length){
+    let bi=0,bs=-Infinity;
+    for(let p=0;p<pool.length;p++){
+      const [j,sim]=pool[p];
+      let red=0; for(const c of chosen){const d=dot(j,c[0]); if(d>red)red=d;}
+      const sc=lambda*sim-(1-lambda)*red;
+      if(sc>bs){bs=sc;bi=p;}
+    }
+    chosen.push(pool[bi]); pool.splice(bi,1);
+  }
+  return chosen;
+}
+// average pairwise cosine within a set of [idx,…] — a redundancy number.
+function avgPair(set){
+  let s=0,c=0;
+  for(let a=0;a<set.length;a++)for(let b=a+1;b<set.length;b++){s+=dot(set[a][0],set[b][0]);c++;}
+  return c? s/c : 0;
+}
+
+// ── render ─────────────────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const pct=s=>Math.round(s*100);
+function isVariant(seed,w){            // crude morphological-overlap flag
+  if(w.length<3||seed.length<3)return false;
+  const a=seed.slice(0,Math.min(5,seed.length-1));
+  return w.startsWith(a)||seed.startsWith(w.slice(0,Math.min(5,w.length-1)));
+}
+
+function rowHTML(seed, rank, wi, sim, hi){
+  const w=words[wi];
+  const frac=Math.max(0,sim/hi);
+  let tags='';
+  if(isVariant(seed,w)) tags+='<span class="tag var">variant</span>';
+  if(wi<300) tags+='<span class="tag hub">common</span>';
+  return `<div class="row"><span class="rk mono">${rank}</span>`+
+    `<span class="wd">${w}${tags}</span>`+
+    `<span class="bar"><i style="width:${(frac*100).toFixed(0)}%;background:var(--plum)"></i></span>`+
+    `<span class="pc mono">${pct(sim)}</span></div>`;
+}
+
+function inspect(){
+  const word=($('w').value||'').toLowerCase().trim();
+  if(!V){return;}
+  if(!idx.has(word)){ $('status').textContent=`"${word}" not in this vocabulary`; return; }
+  const includeStop=$('stop').checked;
+  const k=+$('k').value;
+  const lambda=+$('lam').value/100;
+  const i=idx.get(word);
+
+  const full=fullRank(i, includeStop);
+  const hi=full[0][1];
+
+  // three bases over the same neighbourhood
+  const byCos=full.slice(0,k);
+  const byHub=full.map(([j,s])=>[j, s*spec[j]]).sort((a,b)=>b[1]-a[1]).slice(0,k);
+  const byMMR=mmr(full, k, lambda);
+
+  // redundancy: how alike are the chosen words to each other? lower = more spread.
+  const redCos=avgPair(byCos), redMMR=avgPair(byMMR);
+
+  // falloff curve over the top 400 (or fewer)
+  const N=Math.min(400, full.length);
+  const W=820,H=160,padL=34,padB=20,padT=8;
+  const xs=r=>padL+(r/(N-1))*(W-padL-8);
+  const ys=s=>padT+(1-(s/hi))*(H-padT-padB);   // scaled to the top neighbour
+  let d='';
+  for(let r=0;r<N;r++){ d+=(r?'L':'M')+xs(r).toFixed(1)+' '+ys(full[r][1]).toFixed(1)+' '; }
+  const marks=[6,14,36].filter(m=>m<N).map(m=>
+    `<line x1="${xs(m)}" y1="${padT}" x2="${xs(m)}" y2="${H-padB}" stroke="var(--oxide)" stroke-dasharray="3 3" stroke-width="1"/>`+
+    `<text class="mono" x="${xs(m)+3}" y="${padT+10}" fill="var(--oxide)" font-size="9">${m}</text>`).join('');
+  const kmark=`<line x1="${xs(k)}" y1="${padT}" x2="${xs(k)}" y2="${H-padB}" stroke="var(--plum)" stroke-width="1.4"/>`+
+    `<text class="mono" x="${xs(k)+3}" y="${H-padB-3}" fill="var(--plum)" font-size="9">k=${k}</text>`;
+
+  $('status').textContent=`${word} · vocab-rank ${i} (lower = more common) · ${full.length} neighbours ranked · top sim ${pct(hi)}%`;
+
+  $('main').innerHTML=`
+   <section>
+     <div class="sech">similarity falloff — every cutoff is a vertical line you draw on this curve</div>
+     <div class="note">Cosine to "<b>${word}</b>" as you walk down the ranked neighbourhood (top ${N}).
+       Dashed = the tool's current caps (6/14/36). Solid plum = your k. If this curve has no knee — a
+       smooth slide rather than a cliff — then any fixed cutoff is arbitrary by construction, and the
+       lever isn't <i>where</i> you cut but <i>what you rank by</i>.</div>
+     <div id="curveWrap">
+       <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMinYMin meet">
+         <line x1="${padL}" y1="${H-padB}" x2="${W-8}" y2="${H-padB}" stroke="var(--line)"/>
+         <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--line)"/>
+         <text class="mono" x="2" y="${padT+8}" fill="var(--ink-3)" font-size="9">${pct(hi)}%</text>
+         <text class="mono" x="2" y="${H-padB}" fill="var(--ink-3)" font-size="9">${pct(full[N-1][1])}%</text>
+         ${marks}${kmark}
+         <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+       </svg>
+     </div>
+   </section>
+
+   <section>
+     <div class="sech">redundancy of the selection — are you showing the same word six times?</div>
+     <div class="note">Average pairwise cosine <i>among the chosen words</i>. High = they're near-duplicates
+       of each other (the seed's lap); low = they spread across the field's different directions.</div>
+     <span class="metric">top-${k} by raw cosine: <b>${pct(redCos)}%</b> internal similarity</span>
+     <span class="metric">top-${k} by MMR: <b>${pct(redMMR)}%</b></span>
+   </section>
+
+   <section>
+     <div class="sech">three ways to pick the ${k} words that "are" the field</div>
+     <div class="cols">
+       <div class="col">
+         <h3>nearest (raw cosine)</h3>
+         <div class="desc">What the tool does now. Closest to the seed — tends to surface synonyms and
+           spelling variants first.</div>
+         ${byCos.map(([j,s],n)=>rowHTML(word,n+1,j,s,hi)).join('')}
+       </div>
+       <div class="col">
+         <h3>hub-penalised (cosine × spec)</h3>
+         <div class="desc">The basis the bridge/walk already use. Demotes very common words so the field
+           isn't all "thing/system/area".</div>
+         ${byHub.map(([j,s],n)=>rowHTML(word,n+1,j, full.find(x=>x[0]===j)[1] ,hi)).join('')}
+       </div>
+       <div class="col">
+         <h3>diverse (MMR, λ=${lambda.toFixed(2)})</h3>
+         <div class="desc">Picks words close to the seed but far from each other. Spreads across the
+           field's sub-senses instead of clustering. λ→1 = pure cosine, λ→0 = pure spread.</div>
+         ${byMMR.map(([j,s],n)=>rowHTML(word,n+1,j,s,hi)).join('')}
+       </div>
+     </div>
+   </section>`;
+}
+
+// ── boot: fetch the sibling space.bin (served folder) ──────────────
+async function boot(){
+  try{
+    const buf=await fetch('./space.bin').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();});
+    const sp=parseSpace(buf);
+    ingest(sp.vecs, sp.scale, sp.words);
+    $('status').textContent=`${NV.toLocaleString()} words · ${DIM} dimensions · ready`;
+    $('w').value='water'; inspect();
+  }catch(e){
+    $('status').textContent='could not fetch ./space.bin — serve the folder (it is on :8008) and reload. '+e;
+  }
+}
+$('go').onclick=inspect;
+$('w').addEventListener('keydown',e=>{if(e.key==='Enter')inspect();});
+$('k').addEventListener('input',()=>{$('kv').textContent=$('k').value; if(V)inspect();});
+$('lam').addEventListener('input',()=>{$('lamv').textContent=(+$('lam').value/100).toFixed(2); if(V)inspect();});
+$('stop').addEventListener('change',()=>{if(V)inspect();});
+boot();
+</script>
+</body>
+</html>

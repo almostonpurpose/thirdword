@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>semantic explorer v6</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --bg-primary: #fcfcfa;
+  --bg-secondary: #f5f5f2;
+  --bg-muted: #efefeb;
+  --line: #e5e5df;
+  --text-primary: #151515;
+  --text-secondary: #7d7d78;
+  --text-tertiary: #b0ada6;
+  --accent-plum: #8f84b8;
+  --accent-lilac: #b9b0d2;
+  --accent-sage: #aab7a8;
+  --accent-bluegrey: #9eacbc;
+  --accent-stone: #c8c5be;
+  --accent-dust: #d8d2dd;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+#top {
+  padding: 20px 32px 16px;
+  display: flex;
+  gap: 20px;
+  align-items: baseline;
+  flex-shrink: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--line);
+}
+
+#search {
+  flex: 1;
+  padding: 0 0 6px;
+  font-size: 26px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--line);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.3s;
+}
+#search:focus { border-bottom-color: var(--accent-plum); }
+#search::placeholder { color: var(--text-tertiary); font-weight: 300; }
+
+.tb {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: color 0.15s;
+  position: relative;
+}
+.tb:hover { color: var(--text-secondary); }
+.tb.on { color: var(--text-primary); }
+.tb.on::after {
+  content: '';
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--text-primary);
+}
+
+.tb-sep { color: var(--line); font-size: 11px; }
+
+#status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  min-width: 80px;
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+/* ── Sets panel ── */
+#sets-panel {
+  display: none;
+  padding: 12px 32px 16px;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-primary);
+}
+#sets-panel.on { display: flex; }
+
+#sets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  min-height: 0;
+}
+
+.set-entry {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.set-entry:hover { background: var(--bg-muted); border-color: var(--line); }
+.set-mark { width: 14px; height: 2px; display: inline-block; flex-shrink: 0; }
+.set-remove {
+  background: none; border: none; color: var(--text-tertiary);
+  cursor: pointer; font-size: 14px; padding: 0 2px;
+  font-family: 'JetBrains Mono', monospace;
+  transition: color 0.15s;
+}
+.set-remove:hover { color: var(--text-primary); }
+
+#sets-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+#set-add-area {
+  display: none;
+  padding: 16px;
+  margin-top: 8px;
+  gap: 16px;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+#set-add-area.on { display: flex; }
+
+.set-field {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg-primary);
+  border: 1px solid var(--line);
+  color: var(--text-primary);
+  outline: none;
+  border-radius: 4px;
+}
+.set-field:focus { border-color: var(--accent-plum); }
+.set-field::placeholder { color: var(--text-tertiary); }
+
+.set-field-name { width: 100%; font-weight: 500; }
+.set-field-content { width: 100%; min-height: 100px; resize: vertical; line-height: 1.5; }
+
+.set-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 8px 18px;
+  background: var(--bg-primary);
+  border: 1px solid var(--line);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+.set-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+.set-btn-primary { background: var(--text-primary); color: white; border-color: var(--text-primary); }
+.set-btn-primary:hover { background: #333; }
+
+/* ── Trail ── */
+#trail {
+  padding: 10px 32px 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 20px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+.crumb { color: var(--text-tertiary); cursor: pointer; padding: 2px 4px; transition: color 0.15s; }
+.crumb:hover { color: var(--text-primary); }
+.crumb-sep { color: var(--line); font-size: 10px; }
+.crumb-now { color: var(--accent-plum); font-weight: 600; }
+
+/* ── Main ── */
+#main { flex: 1; position: relative; overflow: hidden; }
+
+#hex-view { position: absolute; inset: 0; }
+#hex-svg { width: 100%; height: 100%; cursor: grab; }
+#hex-svg:active { cursor: grabbing; }
+#hex-svg .hex { cursor: pointer; transition: transform 0.2s cubic-bezier(0.2,0,0,1); }
+#hex-svg .hex:hover .hex-bg { filter: brightness(0.94); }
+
+.hex-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: #7d7d78;
+  pointer-events: none;
+}
+.hex-label-hit { fill: #151515; font-weight: 600; }
+.hex-label-center {
+  fill: #151515;
+  font-weight: 600;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* ── Tooltip ── */
+#tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(21, 21, 21, 0.95);
+  color: white;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  backdrop-filter: blur(4px);
+}
+.tt-word { font-family: 'Inter'; font-size: 14px; font-weight: 600; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; }
+.tt-row { display: flex; justify-content: space-between; gap: 12px; }
+.tt-val { font-weight: 500; color: var(--accent-lilac); }
+.tt-bar-bg { height: 2px; background: rgba(255,255,255,0.1); width: 100%; margin-top: 2px; position: relative; }
+.tt-bar-fg { height: 100%; background: var(--accent-lilac); position: absolute; left: 0; top: 0; }
+
+/* ── Columns ── */
+#col-view { position: absolute; inset: 0; display: none; padding: 16px 32px 60px; gap: 32px; overflow-y: auto; }
+#col-view.on { display: flex; }
+.col { flex: 1; min-width: 0; }
+.col-hdr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: lowercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0;
+}
+.col-item {
+  padding: 8px 0 8px 12px;
+  border-bottom: 1px solid var(--bg-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.12s;
+  border-left: 3px solid transparent;
+  background: none;
+}
+.col-item:hover { color: var(--accent-plum); background: var(--bg-secondary); }
+.col-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+/* ── Bottom ── */
+#bottom {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding-bottom: 18px; pointer-events: none; z-index: 15;
+}
+#legend {
+  display: none; align-items: center; gap: 16px;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  color: var(--text-tertiary); margin-bottom: 10px; letter-spacing: 0.04em;
+}
+#legend.on { display: flex; }
+.leg-mark { width: 12px; height: 2px; display: inline-block; vertical-align: middle; margin-right: 6px; }
+
+#escapes-container { display: flex; flex-direction: column; align-items: center; pointer-events: auto; }
+#escapes { display: none; gap: 0; border: 1px solid var(--line); background: var(--bg-primary); border-radius: 4px; overflow: hidden; }
+#escapes.on { display: flex; }
+.esc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 8px 18px;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--line);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.12s;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+}
+.esc:last-child { border-right: none; }
+.esc:hover { color: var(--text-primary); background: var(--bg-muted); }
+.esc.on { color: var(--text-primary); background: var(--bg-muted); font-weight: 500; }
+
+#esc-desc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-tertiary);
+  margin-top: 8px; letter-spacing: 0.02em; opacity: 0; transition: opacity 0.2s;
+}
+#escapes:hover + #esc-desc { opacity: 1; }
+
+#fig-label {
+  position: absolute; bottom: 78px; left: 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-tertiary);
+  letter-spacing: 0.04em; display: none; z-index: 10;
+}
+#fig-label.on { display: block; }
+
+#loading {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  color: var(--text-tertiary); font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  display: none; z-index: 5; letter-spacing: 0.04em;
+}
+#loading.on { display: block; }
+.spin { display: inline-block; animation: sp 0.8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+#intro {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  text-align: center; color: var(--text-tertiary);
+  font-size: 20px; font-weight: 300; line-height: 2.8;
+  pointer-events: none; letter-spacing: -0.01em; display: none;
+}
+#intro span {
+  display: block; font-size: 11px; color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em;
+  margin-top: 6px;
+}
+
+#zoom-hint {
+  position: absolute; top: 12px; right: 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-tertiary);
+  z-index: 10; display: none; letter-spacing: 0.04em;
+}
+#zoom-hint.on { display: block; }
+
+input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <input type="text" id="search" placeholder="type a word" autofocus>
+  <button class="tb on" id="btn-hex" onclick="setView('hex')">hex</button>
+  <span class="tb-sep">/</span>
+  <button class="tb" id="btn-col" onclick="setView('col')">col</button>
+  <span class="tb-sep">/</span>
+  <button class="tb" id="btn-sets" onclick="toggleSets()">sets</button>
+  <div id="status">[sys] ready</div>
+</div>
+
+<div id="sets-panel">
+  <div id="sets-list"></div>
+  <div id="sets-actions">
+    <button class="tb" onclick="showAddMode('paste')">paste</button>
+    <span class="tb-sep">/</span>
+    <button class="tb" onclick="showAddMode('upload')">upload</button>
+    <span class="tb-sep">/</span>
+    <button class="tb" onclick="showAddMode('generate')">generate</button>
+  </div>
+  <div id="set-add-area"></div>
+</div>
+
+<div id="trail"></div>
+
+<div id="main">
+  <div id="hex-view"><svg id="hex-svg"></svg></div>
+  <div id="tooltip"></div>
+  <div id="col-view"></div>
+  <div id="loading"><span class="spin">&#9684;</span> exploring</div>
+  <div id="intro">type anything to begin<br><span>click words to wander · toggle sets to add anchors</span></div>
+  <div id="zoom-hint">scroll to zoom · drag to pan · double-click to reset</div>
+  <div id="fig-label"></div>
+  <div id="bottom">
+    <div id="legend"></div>
+    <div id="escapes-container">
+      <div id="escapes">
+        <button class="esc on" data-m="ml" title="finds words with a similar meaning to the search term">similar</button>
+        <button class="esc" data-m="rel_trg" title="finds words statistically associated with the search term (tangents)">tangent</button>
+        <button class="esc" data-m="rel_ant" title="finds words with the opposite meaning to the search term">opposite</button>
+        <button class="esc" data-m="rel_gen" title="finds broader, more general terms (hypernyms)">broader</button>
+        <button class="esc" data-m="rel_spc" title="finds more specific examples of the term (hyponyms)">narrower</button>
+        <button class="esc" data-m="random" title="starts a new exploration with a random seed word">reseed</button>
+      </div>
+      <div id="esc-desc">hover a mode to see description</div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-upload" accept=".txt,.csv,.tsv,.text,.md">
+
+<script>
+// ══════════════════
+// CONSTANTS
+// ══════════════════
+const SEEDS = [
+  'memory','ocean','silence','machine','garden','shadow','crystal','labyrinth',
+  'thunder','horizon','compass','mirror','orbit','fossil','current','anchor',
+  'signal','bloom','fragment','threshold','resonance','drift','mosaic','pulse',
+  'cipher','ember','gravity','shelter','vessel','lantern','cartography','dialect'
+];
+
+const SET_PALETTE = [
+  { stroke: '#aab7a8', fill: '#e8ede9' },
+  { stroke: '#8f84b8', fill: '#e8e4f2' },
+  { stroke: '#9eacbc', fill: '#e4e8ed' },
+  { stroke: '#b9b0d2', fill: '#edeaf4' },
+  { stroke: '#c8c5be', fill: '#edebe8' },
+  { stroke: '#d8d2dd', fill: '#f0edf2' },
+];
+
+const STOPWORDS = new Set([
+  'the','a','an','and','or','but','in','on','at','to','for','of','with','by',
+  'from','is','it','its','was','were','be','been','being','have','has','had',
+  'do','does','did','will','would','shall','should','can','could','may','might',
+  'must','that','this','these','those','i','me','my','we','us','our','you',
+  'your','he','him','his','she','her','they','them','their','not','no','nor',
+  'so','if','then','than','as','just','also','very','too','am','are','about'
+]);
+
+const COL_NEUTRAL = '#fcfcfa';
+const COL_CENTER = '#eceef2';
+const COL_CENTER_STROKE = '#9eacbc';
+const COL_LINE = '#e5e5df';
+
+// ══════════════════
+// STATE
+// ══════════════════
+let anchorSets = [];   
+let history = [];
+let currentWord = null;
+let currentMode = 'ml';
+let currentView = 'hex';
+let currentNodes = [];
+let exploreGen = 0;
+let figN = 0;
+
+// ══════════════════
+// ANCHOR SETS
+// ══════════════════
+function extractWords(text) {
+  return new Set(
+    text.toLowerCase()
+      .split(/[^a-z0-9\-]+/)
+      .filter(w => w.length >= 2 && !STOPWORDS.has(w))
+  );
+}
+
+function nextColor() {
+  return SET_PALETTE[anchorSets.length % SET_PALETTE.length];
+}
+
+async function addSet(name, words) {
+  if (words.size === 0) return;
+  const s = { name, words, neighborhood: new Set(), color: nextColor() };
+  anchorSets.push(s);
+  renderSetsUI();
+  await fetchNeighborhood(anchorSets.length - 1);
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+}
+
+async function fetchNeighborhood(idx) {
+  const s = anchorSets[idx];
+  const concept = s.name.length < 3 ? Array.from(s.words).slice(0, 3).join('+') : s.name;
+  try {
+    const res = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(concept)}&max=100`);
+    const data = await res.json();
+    s.neighborhood = new Set(data.map(r => r.word.toLowerCase()));
+  } catch(e) { console.error("neighbor fetch failed", e); }
+}
+
+function removeSet(idx) {
+  anchorSets.splice(idx, 1);
+  anchorSets.forEach((s, i) => s.color = SET_PALETTE[i % SET_PALETTE.length]);
+  renderSetsUI();
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+}
+
+function getSetMatches(word) {
+  const wc = word.replace(/[\s\-]/g, '').toLowerCase();
+  const wl = word.toLowerCase();
+  const matches = [];
+  anchorSets.forEach((s, i) => {
+    if (s.words.has(wc) || s.words.has(wl) || s.words.has(word)) {
+      matches.push({ idx: i, score: 1.0 });
+    } else if (s.neighborhood.has(wc) || s.neighborhood.has(wl)) {
+      matches.push({ idx: i, score: 0.4 }); // stronger pull
+    }
+  });
+  return matches;
+}
+
+// ── Set UI ──
+function renderSetsUI() {
+  const list = document.getElementById('sets-list');
+  if (!anchorSets.length) {
+    list.innerHTML = '<span style="font-family:JetBrains Mono,monospace;font-size:11px;color:var(--text-tertiary);letter-spacing:0.02em">no anchor sets — add one below</span>';
+  } else {
+    list.innerHTML = anchorSets.map((s, i) =>
+      `<span class="set-entry" onclick="editSet(${i})">` +
+        `<span class="set-mark" style="background:${s.color.stroke}"></span>` +
+        `${esc(s.name)} — ${s.words.size} words` +
+        `<button class="set-remove" onclick="event.stopPropagation(); removeSet(${i})">&times;</button>` +
+      `</span>`
+    ).join('');
+  }
+  renderLegend();
+}
+
+function renderLegend() {
+  const el = document.getElementById('legend');
+  if (!anchorSets.length) { el.classList.remove('on'); return; }
+  el.classList.add('on');
+  el.innerHTML = anchorSets.map(s =>
+    `<span><span class="leg-mark" style="background:${s.color.stroke}"></span> ${esc(s.name)}</span>`
+  ).join('');
+}
+
+// ── Add/Edit modes ──
+let addMode = null;
+
+function showAddMode(mode) {
+  const area = document.getElementById('set-add-area');
+  if (addMode === mode) { area.classList.remove('on'); addMode = null; return; }
+  addMode = mode;
+
+  if (mode === 'upload') { document.getElementById('file-upload').click(); addMode = null; return; }
+
+  if (mode === 'paste') {
+    area.innerHTML =
+      `<input class="set-field set-field-name" type="text" id="sa-name" placeholder="set name">` +
+      `<textarea class="set-field set-field-content" id="sa-content" placeholder="paste words, comma or space separated"></textarea>` +
+      `<div style="display:flex;gap:12px">` +
+        `<button class="set-btn set-btn-primary" onclick="commitPaste()">add set</button>` +
+        `<button class="set-btn" onclick="cancelAdd()">cancel</button>` +
+      `</div>`;
+  } else if (mode === 'generate') {
+    area.innerHTML =
+      `<input class="set-field set-field-name" type="text" id="sa-concept" placeholder="concept word (e.g. 'botany')">` +
+      `<div style="font-size:10px;color:var(--text-tertiary);font-family:JetBrains Mono;margin-top:-6px">builds semantic neighborhood around concept</div>` +
+      `<div style="display:flex;gap:12px">` +
+        `<button class="set-btn set-btn-primary" id="sa-gen-btn" onclick="commitGenerate()">generate</button>` +
+        `<button class="set-btn" onclick="cancelAdd()">cancel</button>` +
+      `</div>`;
+  }
+  area.classList.add('on');
+  area.querySelector('input').focus();
+}
+
+function editSet(idx) {
+  const s = anchorSets[idx];
+  const area = document.getElementById('set-add-area');
+  addMode = 'edit';
+  area.innerHTML =
+    `<div style="font-size:10px;color:var(--text-tertiary);font-family:JetBrains Mono;margin-bottom:6px;font-weight:600">editing set</div>` +
+    `<input class="set-field set-field-name" type="text" id="sa-name" value="${escA(s.name)}">` +
+    `<textarea class="set-field set-field-content" id="sa-content">${Array.from(s.words).join(', ')}</textarea>` +
+    `<div style="display:flex;gap:12px">` +
+      `<button class="set-btn set-btn-primary" onclick="commitEdit(${idx})">save changes</button>` +
+      `<button class="set-btn" onclick="cancelAdd()">cancel</button>` +
+    `</div>`;
+  area.classList.add('on');
+  area.querySelector('textarea').focus();
+}
+
+function cancelAdd() {
+  document.getElementById('set-add-area').classList.remove('on');
+  addMode = null;
+}
+
+function commitPaste() {
+  const name = document.getElementById('sa-name').value.trim() || 'untitled';
+  const text = document.getElementById('sa-content').value;
+  addSet(name, extractWords(text));
+  cancelAdd();
+}
+
+async function commitEdit(idx) {
+  const name = document.getElementById('sa-name').value.trim() || 'untitled';
+  const text = document.getElementById('sa-content').value;
+  const s = anchorSets[idx];
+  s.name = name;
+  s.words = extractWords(text);
+  renderSetsUI();
+  await fetchNeighborhood(idx);
+  cancelAdd();
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+}
+
+async function commitGenerate() {
+  const inp = document.getElementById('sa-concept');
+  const btn = document.getElementById('sa-gen-btn');
+  const concept = inp.value.trim().toLowerCase();
+  if (!concept) return;
+
+  btn.textContent = 'building...';
+  btn.disabled = true;
+
+  const endpoints = ['ml', 'rel_trg', 'rel_syn', 'rel_gen', 'rel_spc', 'rel_ant'];
+  const q = encodeURIComponent(concept);
+
+  try {
+    const results = await Promise.all(
+      endpoints.map(e =>
+        fetch(`https://api.datamuse.com/words?${e}=${q}&max=40`)
+          .then(r => r.json()).catch(() => [])
+      )
+    );
+    const words = new Set();
+    words.add(concept);
+    results.flat().forEach(r => { if (r.word) words.add(r.word.toLowerCase()); });
+    await addSet(concept, words);
+  } catch (err) { console.error(err); }
+
+  cancelAdd();
+}
+
+// ── File upload ──
+document.getElementById('file-upload').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    addSet(file.name.replace(/\.\w+$/, ''), extractWords(ev.target.result));
+  };
+  reader.readAsText(file);
+  this.value = '';
+});
+
+// ══════════════════
+// VIEW & NAV
+// ══════════════════
+function toggleSets() {
+  document.getElementById('sets-panel').classList.toggle('on');
+  document.getElementById('btn-sets').classList.toggle('on');
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-hex').classList.toggle('on', v === 'hex');
+  document.getElementById('btn-col').classList.toggle('on', v === 'col');
+  document.getElementById('hex-view').style.display = v === 'hex' ? 'block' : 'none';
+  document.getElementById('col-view').classList.toggle('on', v === 'col');
+  document.getElementById('zoom-hint').classList.toggle('on', v === 'hex' && !!currentWord);
+  document.getElementById('fig-label').classList.toggle('on', v === 'hex' && !!currentWord);
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+}
+
+let deb;
+const searchEl = document.getElementById('search');
+searchEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { clearTimeout(deb); const q = searchEl.value.trim().toLowerCase(); if (q) hop(q); }
+  if (e.key === 'Escape') { searchEl.value = ''; searchEl.blur(); }
+});
+searchEl.addEventListener('input', () => {
+  clearTimeout(deb);
+  const q = searchEl.value.trim().toLowerCase();
+  if (q.length >= 2) deb = setTimeout(() => hop(q), 500);
+});
+
+function hop(word, mode) { currentMode = mode || 'ml'; explore(word, currentMode, false); }
+function hopEscape(mode) { if (!currentWord) return; currentMode = mode; explore(currentWord, mode, true); }
+
+document.getElementById('escapes').addEventListener('click', e => {
+  const btn = e.target.closest('.esc');
+  if (!btn) return;
+  if (btn.dataset.m === 'random') { hop(SEEDS[Math.floor(Math.random() * SEEDS.length)]); return; }
+  document.querySelectorAll('.esc:not([data-m=random])').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  hopEscape(btn.dataset.m);
+});
+
+// hover descriptions
+document.querySelectorAll('.esc').forEach(btn => {
+  btn.onmouseover = () => { document.getElementById('esc-desc').textContent = btn.title; };
+  btn.onmouseout = () => { document.getElementById('esc-desc').textContent = 'hover a mode to see description'; };
+});
+
+document.getElementById('trail').addEventListener('click', e => {
+  const c = e.target.closest('.crumb[data-w]');
+  if (c) hop(c.dataset.w);
+});
+
+// ══════════════════
+// EXPLORE
+// ══════════════════
+async function explore(word, mode, isEscape) {
+  word = word.toLowerCase().trim();
+  if (!isEscape && word === currentWord && mode === currentMode) return;
+
+  document.getElementById('intro').style.display = 'none';
+  document.getElementById('loading').classList.add('on');
+  document.getElementById('tooltip').style.display = 'none';
+
+  const gen = ++exploreGen;
+  const q = encodeURIComponent(word);
+  const url = mode === 'ml'
+    ? `https://api.datamuse.com/words?ml=${q}&max=36`
+    : `https://api.datamuse.com/words?${mode}=${q}&max=36`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (gen !== exploreGen) return;
+
+    if (!data.length) {
+      document.getElementById('loading').classList.remove('on');
+      document.getElementById('status').textContent = '[sys] no results';
+      return;
+    }
+
+    const maxScore = Math.max(...data.map(r => r.score || 1));
+
+    let nodes = data.map(r => {
+      const w = r.word.toLowerCase();
+      const similarity = (r.score || 1) / maxScore;
+      const setMatches = getSetMatches(w);
+      return { word: w, similarity, setMatches };
+    });
+
+    const seen = new Set();
+    nodes = nodes.filter(n => {
+      if (seen.has(n.word) || n.word === word) return false;
+      seen.add(n.word);
+      return true;
+    }).slice(0, 30);
+
+    if (!isEscape && currentWord && currentWord !== word) {
+      history.push(currentWord);
+      if (history.length > 15) history.shift();
+    }
+    currentWord = word;
+    currentNodes = nodes;
+
+    render(word, nodes);
+    renderTrail();
+    searchEl.value = word;
+    document.getElementById('escapes').classList.add('on');
+    document.getElementById('zoom-hint').classList.toggle('on', currentView === 'hex');
+    document.getElementById('fig-label').classList.toggle('on', currentView === 'hex');
+    updateFigLabel(word, mode);
+
+    if (!isEscape) {
+      document.querySelectorAll('.esc:not([data-m=random])').forEach(b => b.classList.remove('on'));
+      document.querySelector('.esc').classList.add('on');
+    }
+
+    const hits = nodes.filter(n => n.setMatches.some(m => m.score === 1.0)).length;
+    let st = '[sys] ' + nodes.length + ' words';
+    if (hits) st += ' · ' + hits + ' hits';
+    document.getElementById('status').textContent = st;
+
+  } catch (err) {
+    if (gen !== exploreGen) return;
+    console.error(err);
+    document.getElementById('status').textContent = '[sys] api error';
+  }
+  document.getElementById('loading').classList.remove('on');
+}
+
+const modeLabels = { ml: 'similar', rel_trg: 'tangent', rel_ant: 'antonym', rel_gen: 'hypernym', rel_spc: 'hyponym' };
+function updateFigLabel(word, mode) {
+  figN++;
+  document.getElementById('fig-label').textContent =
+    'fig ' + figN + '.0 — ' + word + ' / ' + (modeLabels[mode] || mode);
+}
+
+function render(w, n) {
+  if (currentView === 'hex') renderHex(w, n);
+  else renderCols(w, n);
+}
+
+// ══════════════════
+// COLOURS
+// ══════════════════
+function warmthColor(setIdx, intensity) {
+  const c = [252, 252, 250]; 
+  const col = SET_PALETTE[setIdx % SET_PALETTE.length];
+  const h = col.fill;
+  const hr = [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  // amplify intensity for visual clarity
+  const amp = Math.min(1.0, intensity * 1.5);
+  return `rgb(${c.map((v,i) => Math.round(v + (hr[i]-v)*amp)).join(',')})`;
+}
+
+// ══════════════════
+// HEX VIEW
+// ══════════════════
+let vb = { x: -400, y: -300, w: 800, h: 600 };
+let dragging = false, dragStart = null;
+
+function renderHex(centerWord, nodes) {
+  const svg = document.getElementById('hex-svg');
+  const centerMatches = getSetMatches(centerWord);
+  
+  const setAngles = anchorSets.map((_, i) => (i * 2 * Math.PI) / anchorSets.length);
+
+  const items = nodes.map(n => {
+    let prefAngle = null;
+    if (n.setMatches.length > 0) {
+      let sumSin = 0, sumCos = 0;
+      n.setMatches.forEach(m => {
+        sumSin += Math.sin(setAngles[m.idx]) * m.score;
+        sumCos += Math.cos(setAngles[m.idx]) * m.score;
+      });
+      prefAngle = Math.atan2(sumSin, sumCos);
+    } else {
+      let hash = 0;
+      for (let i = 0; i < n.word.length; i++) hash = (hash << 5) - hash + n.word.charCodeAt(i);
+      prefAngle = (Math.abs(hash) % 360) * Math.PI / 180;
+    }
+    return { ...n, prefAngle };
+  });
+
+  const hexR = 48; // larger hexes
+  const hexW = Math.sqrt(3) * hexR;
+  const hexH = 2 * hexR;
+  
+  const ringPositions = [];
+  let ringCount = 0;
+  let r = 0;
+  while (ringCount <= items.length) {
+    let ringNodes = r === 0 ? [[0,0]] : hexRing(r);
+    ringNodes.forEach(pos => {
+      const px = hexW * (pos[0] + pos[1] * 0.5);
+      const py = hexH * 0.75 * pos[1];
+      const angle = Math.atan2(py, px);
+      ringPositions.push({ q: pos[0], r: pos[1], px, py, angle, ring: r });
+    });
+    ringCount += ringNodes.length;
+    r++;
+  }
+
+  const finalItems = [{ word: centerWord, isCenter: true, setMatches: centerMatches, similarity: 1, px: 0, py: 0 }];
+  
+  let currentWordIdx = 0;
+  let ringIdx = 1;
+  while (finalItems.length <= items.length) {
+    const rPos = ringPositions.filter(p => p.ring === ringIdx).sort((a, b) => a.angle - b.angle);
+    const rItemsCount = rPos.length;
+    const rItems = items.slice(currentWordIdx, currentWordIdx + rItemsCount);
+    rItems.sort((a, b) => a.prefAngle - b.prefAngle);
+    rItems.forEach((item, i) => {
+      if (i < rPos.length) {
+        finalItems.push({ ...item, px: rPos[i].px, py: rPos[i].py });
+      }
+    });
+    currentWordIdx += rItemsCount;
+    ringIdx++;
+  }
+
+  let minX = -100, minY = -100, maxX = 100, maxY = 100;
+  finalItems.forEach(item => {
+    minX = Math.min(minX, item.px - hexW/2); minY = Math.min(minY, item.py - hexH/2);
+    maxX = Math.max(maxX, item.px + hexW/2); maxY = Math.max(maxY, item.py + hexH/2);
+  });
+  const pad = 100;
+  vb = { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
+
+  const fullPts = hexPts(hexR);
+  const leftPts = hexHalfPts(hexR, 'left');
+  const rightPts = hexHalfPts(hexR, 'right');
+
+  let s = '';
+  finalItems.forEach(item => {
+    const m = item.setMatches;
+    const hasFullHit = m.some(x => x.score === 1.0);
+    const dataAttr = item.isCenter ? '' : `data-w="${escA(item.word)}"`;
+
+    let hexContent;
+    if (item.isCenter) {
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${COL_CENTER}" stroke="${COL_CENTER_STROKE}" stroke-width="2"/>`;
+    } else if (m.length >= 2) {
+      const mSorted = [...m].sort((a,b) => b.score - a.score);
+      const c0 = anchorSets[mSorted[0].idx].color, c1 = anchorSets[mSorted[1].idx].color;
+      const f0 = mSorted[0].score === 1.0 ? c0.fill : warmthColor(mSorted[0].idx, 0.4);
+      const f1 = mSorted[1].score === 1.0 ? c1.fill : warmthColor(mSorted[1].idx, 0.4);
+      hexContent =
+        `<polygon class="hex-bg" points="${leftPts}" fill="${f0}" stroke="${c0.stroke}" stroke-width="${mSorted[0].score === 1.0 ? 1.5 : 0.6}"/>` +
+        `<polygon class="hex-bg" points="${rightPts}" fill="${f1}" stroke="${c1.stroke}" stroke-width="${mSorted[1].score === 1.0 ? 1.5 : 0.6}"/>`;
+    } else if (m.length === 1) {
+      const c = anchorSets[m[0].idx].color;
+      const f = m[0].score === 1.0 ? c.fill : warmthColor(m[0].idx, 0.4);
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${f}" stroke="${c.stroke}" stroke-width="${m[0].score === 1.0 ? 2 : 0.8}"/>`;
+    } else {
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${COL_NEUTRAL}" stroke="${COL_LINE}" stroke-width="0.8"/>`;
+    }
+
+    const trunc = item.word.length > 10 ? item.word.slice(0, 9) + '\u2026' : item.word;
+    const labelCls = item.isCenter ? 'hex-label hex-label-center' : (hasFullHit ? 'hex-label hex-label-hit' : 'hex-label');
+
+    // JSON data for tooltip
+    const nodeData = JSON.stringify({
+      w: item.word,
+      sim: Math.round(item.similarity * 100),
+      matches: item.setMatches.map(mt => ({ name: anchorSets[mt.idx].name, score: Math.round(mt.score * 100) }))
+    });
+
+    s += `<g class="hex" transform="translate(${item.px},${item.py})" ${dataAttr} data-info='${escA(nodeData)}'>${hexContent}<text class="${labelCls}" x="0" y="0">${escH(trunc)}</text></g>`;
+  });
+
+  svg.innerHTML = s;
+  applyVB();
+  setupInteractions();
+}
+
+function setupInteractions() {
+  const svg = document.getElementById('hex-svg');
+  const tt = document.getElementById('tooltip');
+
+  svg.onmousemove = e => {
+    const g = e.target.closest('g.hex');
+    if (g) {
+      const data = JSON.parse(g.dataset.info);
+      let html = `<div class="tt-word">${escH(data.w)}</div>`;
+      html += `<div class="tt-row"><span>Similarity</span><span class="tt-val">${data.sim}%</span></div>`;
+      html += `<div class="tt-bar-bg"><div class="tt-bar-fg" style="width:${data.sim}%"></div></div>`;
+      
+      if (data.matches.length) {
+        html += `<div style="margin-top:8px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;font-size:8px">Anchor Relevance</div>`;
+        data.matches.forEach(m => {
+          html += `<div class="tt-row" style="margin-top:2px"><span>${escH(m.name)}</span><span class="tt-val">${m.score}%</span></div>`;
+          html += `<div class="tt-bar-bg"><div class="tt-bar-fg" style="width:${m.score}%"></div></div>`;
+        });
+      }
+      
+      tt.innerHTML = html;
+      tt.style.display = 'flex';
+      
+      // Position tooltip
+      const rect = document.getElementById('main').getBoundingClientRect();
+      let tx = e.clientX - rect.left + 15;
+      let ty = e.clientY - rect.top + 15;
+      
+      // Keep in bounds
+      if (tx + 180 > rect.width) tx = e.clientX - rect.left - 180;
+      if (ty + 150 > rect.height) ty = e.clientY - rect.top - 150;
+      
+      tt.style.left = tx + 'px';
+      tt.style.top = ty + 'px';
+    } else {
+      tt.style.display = 'none';
+    }
+  };
+
+  svg.onmouseleave = () => { tt.style.display = 'none'; };
+  svg.onclick = e => { const g = e.target.closest('g[data-w]'); if (g) hop(g.dataset.w); };
+}
+
+function escA(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&apos;').replace(/</g,'&lt;'); }
+function escH(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function esc(s) { return escH(s); }
+
+function hexPts(r) {
+  const p = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    p.push(`${(Math.cos(a)*r).toFixed(1)},${(Math.sin(a)*r).toFixed(1)}`);
+  }
+  return p.join(' ');
+}
+
+function hexHalfPts(r, side) {
+  const verts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    verts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  if (side === 'left') {
+    return [verts[5], verts[4], verts[3], verts[2]].map(v => `${v[0].toFixed(1)},${v[1].toFixed(1)}`).join(' ');
+  } else {
+    return [verts[5], verts[0], verts[1], verts[2]].map(v => `${v[0].toFixed(1)},${v[1].toFixed(1)}`).join(' ');
+  }
+}
+
+function hexRing(ring) {
+  const c = [];
+  let q = 0, r = -ring;
+  const dirs = [[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+  for (let d = 0; d < 6; d++) {
+    for (let s = 0; s < ring; s++) {
+      c.push([q, r]); q += dirs[d][0]; r += dirs[d][1];
+    }
+  }
+  return c;
+}
+
+function applyVB() { document.getElementById('hex-svg').setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+
+// ── Pan/Zoom ──
+const MIN_VB_DIM = 100;
+const MAX_VB_DIM = 8000;
+
+const hexSvg = document.getElementById('hex-svg');
+hexSvg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = e.deltaY > 0 ? 1.12 : 0.89;
+  const newW = vb.w * f, newH = vb.h * f;
+  if (newW < MIN_VB_DIM || newH < MIN_VB_DIM || newW > MAX_VB_DIM || newH > MAX_VB_DIM) return;
+  const rect = hexSvg.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+  const px = vb.x + vb.w * mx, py = vb.y + vb.h * my;
+  vb.w = newW; vb.h = newH;
+  vb.x = px - vb.w * mx; vb.y = py - vb.h * my;
+  applyVB();
+}, { passive: false });
+
+hexSvg.addEventListener('mousedown', e => {
+  if (e.target.closest('g[data-w]')) return;
+  dragging = true; dragStart = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y };
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const rect = hexSvg.getBoundingClientRect();
+  const scale = vb.w / rect.width;
+  vb.x = dragStart.vx - (e.clientX - dragStart.x) * scale;
+  vb.y = dragStart.vy - (e.clientY - dragStart.y) * scale;
+  applyVB();
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+
+let lastTouches = null;
+hexSvg.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { dragging = true; dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, vx: vb.x, vy: vb.y }; }
+  lastTouches = [...e.touches];
+}, { passive: true });
+hexSvg.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && dragging) {
+    const rect = hexSvg.getBoundingClientRect();
+    const sc = vb.w / rect.width;
+    vb.x = dragStart.vx - (e.touches[0].clientX - dragStart.x) * sc;
+    vb.y = dragStart.vy - (e.touches[0].clientY - dragStart.y) * sc;
+    applyVB();
+  } else if (e.touches.length === 2 && lastTouches && lastTouches.length === 2) {
+    const pd = Math.hypot(lastTouches[0].clientX - lastTouches[1].clientX, lastTouches[0].clientY - lastTouches[1].clientY);
+    const cd = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const f = pd / cd;
+    const newW = vb.w * f, newH = vb.h * f;
+    if (newW >= MIN_VB_DIM && newH >= MIN_VB_DIM && newW <= MAX_VB_DIM && newH <= MAX_VB_DIM) {
+      const cx = vb.x + vb.w/2, cy = vb.y + vb.h/2;
+      vb.w = newW; vb.h = newH; vb.x = cx - vb.w/2; vb.y = cy - vb.h/2; applyVB();
+    }
+  }
+  lastTouches = [...e.touches];
+}, { passive: true });
+hexSvg.addEventListener('touchend', () => { dragging = false; lastTouches = null; });
+hexSvg.addEventListener('dblclick', e => {
+  if (e.target.closest('g[data-w]')) return;
+  if (currentWord && currentNodes.length) renderHex(currentWord, currentNodes);
+});
+
+// ══════════════════
+// COLUMNS
+// ══════════════════
+function renderCols(centerWord, nodes) {
+  const el = document.getElementById('col-view');
+  if (!anchorSets.length) {
+    nodes.sort((a,b) => b.similarity - a.similarity);
+    el.innerHTML = `<div class="col"><div class="col-hdr">field</div>${nodes.map(n => colItem(n)).join('')}</div>`;
+  } else {
+    const matched = new Map();
+    const unmatched = [];
+    anchorSets.forEach((_, i) => matched.set(i, []));
+    nodes.forEach(n => {
+      const hits = n.setMatches.filter(m => m.score === 1.0);
+      if (hits.length === 0) unmatched.push(n);
+      else hits.forEach(m => matched.get(m.idx).push(n));
+    });
+    unmatched.sort((a,b) => b.similarity - a.similarity);
+    let html = `<div class="col"><div class="col-hdr">field</div>${unmatched.map(n => colItem(n)).join('') || '<div class="col-meta" style="padding:8px 0">all matched</div>'}</div>`;
+    anchorSets.forEach((s, i) => {
+      const items = matched.get(i);
+      items.sort((a,b) => b.similarity - a.similarity);
+      html += `<div class="col"><div class="col-hdr" style="color:${s.color.stroke}">${esc(s.name)}</div>${items.map(n => colItem(n, i)).join('') || '<div class="col-meta" style="padding:8px 0">keep exploring</div>'}</div>`;
+    });
+    el.innerHTML = html;
+  }
+  el.onclick = e => { const it = e.target.closest('[data-w]'); if (it) hop(it.dataset.w); };
+}
+
+function colItem(n, setIdx) {
+  const hits = n.setMatches.filter(m => m.score === 1.0);
+  const borderColor = setIdx !== undefined
+    ? anchorSets[setIdx].color.stroke
+    : (hits.length > 0 ? anchorSets[hits[0].idx].color.stroke : 'transparent');
+  const meta = Math.round((n.similarity || 0) * 100) + '%';
+  return `<div class="col-item" style="border-left-color:${borderColor}" data-w="${escA(n.word)}">${escH(n.word)}<span class="col-meta">${meta}</span></div>`;
+}
+
+// ── Trail ──
+function renderTrail() {
+  const t = document.getElementById('trail');
+  if (!history.length && !currentWord) { t.innerHTML = ''; return; }
+  let h = history.map(w =>
+    `<span class="crumb" data-w="${escA(w)}">${escH(w)}</span><span class="crumb-sep">\u2192</span>`
+  ).join('');
+  h += `<span class="crumb crumb-now">${escH(currentWord)}</span>`;
+  t.innerHTML = h;
+}
+
+window.addEventListener('resize', () => {
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+});
+
+// ══════════════════
+// INIT
+// ══════════════════
+renderSetsUI();
+hop(SEEDS[Math.floor(Math.random() * SEEDS.length)]);
+</script>
+</body>
+</html>

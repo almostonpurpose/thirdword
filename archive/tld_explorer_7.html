@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>meaning map v7 — semantic field explorer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-primary: #f7f4ee;
+  --bg-secondary: #f0ece4;
+  --bg-muted: #e7e1d7;
+  --line: #d8d1c4;
+  --text-primary: #171512;
+  --text-secondary: #71685c;
+  --text-tertiary: #afa596;
+  --accent-plum: #8f84b8;
+  --accent-sage: #aab7a8;
+  --accent-bluegrey: #9eacbc;
+  --accent-amber: #d6b175;
+  --stage-shadow: 0 18px 42px rgba(33, 24, 9, 0.08);
+  --panel-bg: rgba(247, 244, 238, 0.9);
+  --panel-strong: rgba(250, 248, 244, 0.95);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255,255,255,0.96), rgba(247,244,238,0.96) 32%, rgba(240,236,228,0.96) 62%, rgba(231,225,215,0.98) 100%),
+    linear-gradient(180deg, #fbfaf7 0%, #f2eee6 100%);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  position: relative;
+}
+
+/* ── Control Dock ── */
+#top {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 380px;
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 30;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--stage-shadow);
+}
+
+#search {
+  width: 100%;
+  padding: 0 0 8px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-primary);
+  font-family: 'Fraunces', serif;
+  outline: none;
+  transition: border-color 0.3s;
+}
+#search:focus { border-bottom-color: var(--accent-amber); }
+#search::placeholder { color: var(--text-tertiary); }
+
+#top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#top-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tb {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: color 0.15s;
+  position: relative;
+}
+.tb:hover { color: var(--text-secondary); }
+.tb.on { color: var(--text-primary); font-weight: 600; }
+.tb.on::after {
+  content: '';
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--text-primary);
+}
+
+.tb-sep { color: var(--line); font-size: 13px; margin: 0 -8px; }
+
+#status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  min-width: 116px;
+  text-align: right;
+  letter-spacing: 0.04em;
+  margin-left: auto;
+}
+
+#dock-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.legend-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
+}
+
+/* ── Sets Panel ── */
+#sets-panel {
+  display: none;
+  position: absolute;
+  top: 186px;
+  left: 20px;
+  width: 380px;
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  padding: 16px;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 25;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--panel-strong);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--stage-shadow);
+}
+#sets-panel.on { display: flex; }
+
+#sets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+}
+
+.set-entry {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.set-entry:hover { background: var(--bg-muted); border-color: var(--line); }
+.set-mark { width: 16px; height: 3px; display: inline-block; border-radius: 2px; }
+
+.set-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  padding: 11px 16px;
+  background: rgba(255,255,255,0.45);
+  border: 1px solid var(--line);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 6px;
+}
+.set-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+/* ── Trail ── */
+#trail {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 18px;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.crumb { color: var(--text-tertiary); cursor: pointer; padding: 2px 6px; border-radius: 999px; }
+.crumb:hover { background: rgba(0,0,0,0.04); color: var(--text-primary); }
+.crumb-now { color: var(--accent-plum); font-weight: 600; }
+
+/* ── Main View ── */
+#main { position: absolute; inset: 0; overflow: hidden; }
+
+#hex-view { position: absolute; inset: 0; }
+#hex-svg { width: 100%; height: 100%; cursor: grab; }
+#hex-svg.dragging { cursor: grabbing; }
+
+/* Hex Styles */
+.hex-bg { transition: fill 0.3s, stroke 0.3s, opacity 0.3s, filter 0.2s; }
+.hex:hover .hex-bg { filter: brightness(0.98); }
+.hex-label {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  letter-spacing: -0.015em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: #5c5349;
+  pointer-events: none;
+}
+.hex-label-center {
+  fill: #171512;
+  font-weight: 700;
+  font-size: 16px;
+  font-family: 'Fraunces', serif;
+  letter-spacing: -0.03em;
+}
+.hex-label-hit { fill: #171512; font-weight: 600; }
+.hex-guided .hex-bg { opacity: 0.32; }
+.hex-guided .hex-label { opacity: 0.44; }
+.hex-guided-top .hex-bg {
+  opacity: 1;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 4px 10px rgba(81, 73, 57, 0.08));
+}
+.hex-guided-top .hex-label,
+.hex-guided-top .hex-label-hit {
+  opacity: 1;
+  fill: #171512;
+  font-weight: 700;
+}
+.hex-guided-secondary .hex-bg { opacity: 0.74; }
+.hex-guided-secondary .hex-label,
+.hex-guided-secondary .hex-label-hit { opacity: 0.82; }
+
+/* Satellite / Mini Grids */
+.satellite-bg { fill: var(--bg-secondary); stroke: var(--line); stroke-dasharray: 4 4; opacity: 0.38; }
+.satellite-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  fill: var(--text-tertiary);
+  pointer-events: none;
+}
+.satellite-orbit {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 6 10;
+  opacity: 0.2;
+}
+.satellite-spoke {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 7;
+  opacity: 0.14;
+}
+.anchor-node-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--text-secondary);
+  pointer-events: none;
+}
+.anchor-node-label-hit {
+  fill: var(--text-primary);
+  font-weight: 600;
+}
+.anchor-node-bg {
+  opacity: 0.55;
+}
+.anchor-node-muted .anchor-node-bg {
+  opacity: 0.22;
+}
+.anchor-body-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--text-tertiary);
+  pointer-events: none;
+}
+
+/* ── Enhanced Tooltip (Insight) ── */
+#tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--text-primary);
+  padding: 18px;
+  border-radius: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  z-index: 1000;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 240px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+.tt-word { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; border-bottom: 1px solid var(--line); padding-bottom: 8px; color: var(--text-primary); }
+.tt-section-label { font-size: 9px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.tt-row { display: flex; justify-content: space-between; align-items: baseline; }
+.tt-val { font-weight: 600; color: var(--accent-plum); }
+.tt-bar-bg { height: 4px; background: var(--bg-muted); border-radius: 2px; width: 100%; overflow: hidden; }
+.tt-bar-fg { height: 100%; background: var(--accent-plum); transition: width 0.3s ease-out; }
+
+/* ── Bottom Controls (Larger & clearer) ── */
+#bottom {
+  display: none;
+}
+
+#escapes-container { display: flex; flex-direction: column; align-items: center; pointer-events: auto; }
+#escapes {
+  display: flex; gap: 0; border: 1px solid var(--line);
+  background: var(--bg-primary); border-radius: 10px;
+  overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.esc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-right: 1px solid var(--line);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+}
+.esc:last-child { border-right: none; }
+.esc:hover { color: var(--text-primary); background: var(--bg-secondary); }
+.esc.on { color: var(--text-primary); background: var(--bg-muted); font-weight: 600; }
+
+#esc-desc {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-tertiary);
+  margin-top: 12px; letter-spacing: 0.03em;
+  background: var(--bg-primary); padding: 4px 12px; border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  opacity: 0; transition: opacity 0.3s;
+}
+#escapes-container:hover #esc-desc { opacity: 1; }
+
+#fig-label {
+  display: none;
+}
+#compass-readout {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  z-index: 12;
+  width: 300px;
+  padding: 14px 14px 16px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  border-radius: 22px;
+  backdrop-filter: blur(18px);
+  box-shadow: var(--stage-shadow);
+}
+.compass-kicker {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.compass-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.compass-word {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.compass-strength {
+  margin-left: auto;
+  color: var(--text-tertiary);
+}
+.compass-dest {
+  display: none;
+}
+.compass-note {
+  margin-top: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+.name-suggestions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.name-chip {
+  display: inline-block;
+  margin: 5px 5px 0 0;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.5);
+  border-radius: 999px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-primary);
+}
+
+#loading {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  color: var(--text-tertiary); font-size: 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  display: none; z-index: 100; letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.8); padding: 20px 40px; border-radius: 50px;
+  backdrop-filter: blur(4px);
+}
+#loading.on { display: block; }
+.spin { display: inline-block; animation: sp 1s linear infinite; margin-right: 10px; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* ── Responsive adjustments ── */
+@media (max-width: 900px) {
+  #top {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    border-radius: 18px;
+  }
+  #top-row { flex-wrap: wrap; }
+  #compass-readout {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    width: auto;
+  }
+  #sets-panel {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    top: 176px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <input type="text" id="search" placeholder="type a word to map meaning" autofocus>
+  <div id="top-row">
+    <div id="top-tabs">
+      <button class="tb on" id="btn-hex" onclick="setView('hex')">field view</button>
+      <span class="tb-sep">/</span>
+      <button class="tb" id="btn-sets" onclick="toggleSets()">anchor sets</button>
+    </div>
+    <div id="status">ready</div>
+  </div>
+  <div id="trail"></div>
+  <div id="dock-meta">
+    <div id="heat-legend" class="legend-label">
+      <span class="legend-dot" style="background:rgba(255,255,255,0.7)"></span> cold
+      <span class="legend-dot" style="background:#d8d2dd"></span> warm
+      <span class="legend-dot" style="background:#8f84b8"></span> hot
+    </div>
+  </div>
+</div>
+
+<div id="sets-panel">
+  <div id="sets-list"></div>
+  <div id="sets-actions" style="margin-top: 8px; display: flex; gap: 12px; flex-wrap: wrap;">
+    <button class="set-btn" onclick="loadPresetBio()">bio naming case</button>
+  </div>
+  <div id="sets-actions" style="margin-top: 8px; display: flex; gap: 12px;">
+    <button class="set-btn" onclick="showAddMode('paste')">+ paste list</button>
+    <button class="set-btn" onclick="showAddMode('generate')">+ generate set</button>
+  </div>
+  <div id="set-add-area" style="display:none; padding: 20px; background: var(--bg-secondary); border-radius: 8px; margin-top: 10px;"></div>
+</div>
+
+<div id="main">
+  <div id="hex-view">
+    <svg id="hex-svg"></svg>
+  </div>
+  <div id="tooltip"></div>
+  <div id="loading"><span class="spin">○</span> calculating semantic field...</div>
+  
+  <div id="fig-label">FIG 7.0 — SEMANTIC GRAVITY FIELD</div>
+  <div id="compass-readout"></div>
+  
+  <div id="bottom">
+    <div id="escapes-container">
+      <div id="escapes">
+        <button class="esc on" data-m="ml" title="Words with direct semantic similarity">similar</button>
+        <button class="esc" data-m="rel_trg" title="Words statistically associated or triggered by the term (tangents)">tangent</button>
+        <button class="esc" data-m="rel_ant" title="Words with opposite semantic polarity">opposite</button>
+        <button class="esc" data-m="rel_gen" title="Broader, more abstract categorizations">broader</button>
+        <button class="esc" data-m="rel_spc" title="Specific instances or technical subtypes">narrower</button>
+        <button class="esc" data-m="random" title="Jump to a new semantic island">random</button>
+      </div>
+      <div id="esc-desc">hover a mode to reveal logic</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG & CONSTANTS
+// ══════════════════════════════════════════════════════════════
+const SEEDS = ['memory','ocean','silence','machine','garden','shadow','crystal','labyrinth','resonance','pulse','threshold','drift'];
+const SET_COLORS = [
+  { stroke: '#8f84b8', fill: '#f0edf7' }, // Plum/Lilac
+  { stroke: '#aab7a8', fill: '#f0f4f0' }, // Sage
+  { stroke: '#9eacbc', fill: '#edf2f7' }, // Bluegrey
+  { stroke: '#c8c5be', fill: '#f7f6f2' }, // Stone
+  { stroke: '#d8d2dd', fill: '#f6f2f9' }, // Dust
+  { stroke: '#eec9cf', fill: '#fff5f6' }, // Rose
+];
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let anchorSets = [];
+let history = [];
+let currentWord = null;
+let currentMode = 'ml';
+let currentNodes = [];
+let currentSeedAccess = { pulls: [], totalPull: 0, targetX: 0, targetY: 0, targetWeight: 0, bestDestination: '' };
+let exploreGen = 0;
+let vb = { x: -600, y: -450, w: 1200, h: 900 };
+let currentView = 'hex';
+let autoFitPending = true;
+const wordFingerprintCache = new Map();
+
+// ══════════════════════════════════════════════════════════════
+// SEMANTIC FIELD LOGIC (THE "WIDER NET")
+// ══════════════════════════════════════════════════════════════
+
+async function addSet(name, words) {
+  const color = SET_COLORS[anchorSets.length % SET_COLORS.length];
+  const normalizedWords = words.map(w => w.toLowerCase().trim()).filter(Boolean);
+  const s = {
+    name,
+    words: new Set(normalizedWords),
+    wordClouds: [],
+    graphNodes: [],
+    neighborhood: new Map(),
+    exemplars: normalizedWords.slice(0, 7),
+    color,
+    pullCache: new Map()
+  };
+  anchorSets.push(s);
+  renderSetsUI();
+  await buildNeighborhood(s);
+  if (currentWord) refreshCurrentView();
+}
+
+async function buildNeighborhood(set) {
+  const seeds = [...set.words];
+  try {
+    const cloudResults = await Promise.all(seeds.map(async sourceWord => {
+      const entries = await getWordFingerprintEntries(sourceWord, 36, 18);
+      entries.sort((a, b) => b.score - a.score);
+      return {
+        sourceWord,
+        map: new Map(entries.map(entry => [entry.word, entry.score])),
+        entries: entries.slice(0, 28)
+      };
+    }));
+
+    const graphMap = new Map();
+    const neighborhoodMap = new Map();
+    cloudResults.forEach(cloud => {
+      neighborhoodMap.set(cloud.sourceWord, 1);
+      cloud.entries.forEach(entry => {
+        neighborhoodMap.set(entry.word, Math.max(neighborhoodMap.get(entry.word) || 0, entry.score));
+        const existing = graphMap.get(entry.word) || {
+          word: entry.word,
+          aggregate: 0,
+          sourceHits: []
+        };
+        existing.aggregate += entry.score;
+        existing.sourceHits.push({ sourceWord: cloud.sourceWord, score: entry.score });
+        graphMap.set(entry.word, existing);
+      });
+    });
+
+    seeds.forEach(sourceWord => {
+      const existing = graphMap.get(sourceWord) || {
+        word: sourceWord,
+        aggregate: 0,
+        sourceHits: []
+      };
+      existing.aggregate = Math.max(existing.aggregate, 1);
+      existing.sourceHits.push({ sourceWord, score: 1 });
+      graphMap.set(sourceWord, existing);
+    });
+
+    const graphNodes = [...graphMap.values()]
+      .map(node => ({
+        ...node,
+        sourceHits: compressSourceHits(node.sourceHits)
+      }))
+      .sort((a, b) => b.aggregate - a.aggregate)
+      .slice(0, 64);
+
+    set.wordClouds = cloudResults;
+    set.graphNodes = graphNodes;
+    set.neighborhood = neighborhoodMap;
+    set.exemplars = graphNodes.map(node => node.word).slice(0, 24);
+  } catch(e) { console.warn("field build failed", e); }
+}
+
+function calculatePull(word, set) {
+  const w = word.toLowerCase();
+  if (set.words.has(w)) return 1.0;
+  if (set.neighborhood.has(w)) return set.neighborhood.get(w);
+  
+  // Minimal fuzzy check for substrings if word is complex
+  for (let sw of set.words) {
+    if (w.includes(sw) && sw.length > 3) return 0.4;
+  }
+  return 0;
+}
+
+function compressSourceHits(hits) {
+  const bySource = new Map();
+  hits.forEach(hit => {
+    bySource.set(hit.sourceWord, Math.max(bySource.get(hit.sourceWord) || 0, hit.score));
+  });
+  return [...bySource.entries()]
+    .map(([sourceWord, score]) => ({ sourceWord, score }))
+    .sort((a, b) => b.score - a.score);
+}
+
+async function getWordFingerprintEntries(word, mlMax = 20, relMax = 12) {
+  const key = `${word.toLowerCase()}::${mlMax}::${relMax}`;
+  if (wordFingerprintCache.has(key)) return wordFingerprintCache.get(key);
+  const promise = (async () => {
+    const [mlRes, relRes] = await Promise.all([
+      fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(word)}&max=${mlMax}`),
+      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(word)}&max=${relMax}`)
+    ]);
+    const [mlData, relData] = await Promise.all([mlRes.json(), relRes.json()]);
+    const combined = [...mlData, ...relData];
+    const seen = new Set([word.toLowerCase()]);
+    const entries = [{ word: word.toLowerCase(), score: 1 }];
+    for (const row of combined) {
+      const candidate = row.word.toLowerCase();
+      if (seen.has(candidate)) continue;
+      seen.add(candidate);
+      entries.push({ word: candidate, score: Math.min(1, (row.score || 0) / 1000) });
+    }
+    return entries;
+  })();
+  wordFingerprintCache.set(key, promise);
+  return promise;
+}
+
+async function getWordFingerprintMap(word, mlMax = 20, relMax = 12) {
+  const entries = await getWordFingerprintEntries(word, mlMax, relMax);
+  return new Map(entries.map(entry => [entry.word, entry.score]));
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPLORATION & API
+// ══════════════════════════════════════════════════════════════
+
+async function explore(word, mode = 'ml') {
+  word = word.toLowerCase().trim();
+  if (!word) return;
+  
+  const gen = ++exploreGen;
+  document.getElementById('loading').classList.add('on');
+  
+  try {
+    const url = `https://api.datamuse.com/words?${mode}=${encodeURIComponent(word)}&max=40&md=p`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (gen !== exploreGen) return;
+    
+    if (!data.length) {
+      document.getElementById('status').textContent = "no semantic connections found";
+      document.getElementById('loading').classList.remove('on');
+      return;
+    }
+
+    const maxScore = Math.max(...data.map(r => r.score || 1));
+    
+    currentNodes = data.map(r => {
+      const w = r.word.toLowerCase();
+      const sim = (r.score || 1) / maxScore;
+      return { word: w, sim };
+    }).filter(n => n.word !== word).slice(0, 32);
+
+    if (currentWord && currentWord !== word) history.push(currentWord);
+    currentWord = word;
+    currentMode = mode;
+    autoFitPending = true;
+    await enrichCurrentNodesForCompass();
+    
+    document.getElementById('search').value = word;
+    renderTrail();
+    renderHexField();
+    
+    const anchorMsg = anchorSets.length ? ` · ${anchorSets.length} anchors active` : '';
+    document.getElementById('status').textContent = `${currentNodes.length} connections mapped${anchorMsg}`;
+    
+  } catch (err) {
+    console.error(err);
+    document.getElementById('status').textContent = "api error";
+  }
+  document.getElementById('loading').classList.remove('on');
+}
+
+async function enrichCurrentNodesForCompass() {
+  if (!anchorSets.length) {
+    currentNodes = currentNodes.map(node => ({
+      ...node,
+      pulls: [],
+      totalPull: 0,
+      targetX: 0,
+      targetY: 0,
+      targetWeight: 0,
+      bestDestination: ''
+    }));
+    currentSeedAccess = { pulls: [], totalPull: 0, targetX: 0, targetY: 0, targetWeight: 0, bestDestination: '' };
+    return;
+  }
+
+  const hexR = 50;
+  const hexW = Math.sqrt(3) * hexR;
+  const hexH = 2 * hexR;
+  const satellites = buildAnchorBodies(560, hexW, hexH);
+  currentNodes = await Promise.all(currentNodes.map(async node => ({
+    ...node,
+    ...(await computeAccessProfile(node.word, satellites))
+  })));
+  currentSeedAccess = await computeAccessProfile(currentWord, satellites);
+}
+
+// ══════════════════════════════════════════════════════════════
+// VISUALIZATION (HEX GRAVITY FIELD)
+// ══════════════════════════════════════════════════════════════
+
+function renderHexField() {
+  const svg = document.getElementById('hex-svg');
+  const hexR = 54;
+  const hexW = Math.sqrt(3) * hexR;
+  const hexH = 2 * hexR;
+  const satRadius = 420;
+  const localFieldRadius = 2;
+  const satellites = buildAnchorBodies(satRadius, hexW, hexH);
+  const localCells = buildHexCells(localFieldRadius, hexW, hexH)
+    .filter(cell => !(cell.q === 0 && cell.r === 0));
+  const visibleNodes = [...currentNodes]
+    .sort((a, b) => ((b.totalPull * 0.65) + b.sim) - ((a.totalPull * 0.65) + a.sim))
+    .slice(0, localCells.length);
+  const localGrid = placeLocalNodesOnHexes(visibleNodes, localCells, satellites, hexR);
+  const guidedWords = rankGuidedWords(localGrid);
+  const guidedTop = new Set(guidedWords.slice(0, 3).map(node => node.word));
+  const guidedSecondary = new Set(guidedWords.slice(3, 7).map(node => node.word));
+
+  let html = '';
+
+  // Anchor regions still influence layout and guidance, but are hidden in the default view.
+
+  const pts = hexPts(hexR);
+  const grid = [{
+    word: currentWord,
+    px: 0,
+    py: 0,
+    isCenter: true,
+    sim: 1,
+    pulls: currentSeedAccess.pulls,
+    totalPull: currentSeedAccess.totalPull,
+    bestDestination: currentSeedAccess.bestDestination
+  }, ...localGrid];
+
+  grid.forEach(item => {
+    let fill = 'var(--bg-primary)';
+    let stroke = 'var(--line)';
+    let sw = 1;
+    
+    // Multi-set heatmap logic
+    if (item.isCenter) {
+      fill = '#eceef2'; stroke = '#9eacbc'; sw = 3;
+    } else {
+      const topPulls = [...item.pulls].sort((a,b) => b.score - a.score).filter(p => p.score > 0);
+      if (topPulls.length > 0) {
+        const top = topPulls[0];
+        const baseColor = anchorSets[top.idx].color;
+        fill = colorForNode(item.pulls, item.totalPull);
+        stroke = baseColor.stroke;
+        sw = top.score > 0.8 ? 2.1 : 1.3;
+      }
+    }
+
+    const dataInfo = JSON.stringify({
+      w: item.word,
+      sim: Math.round(item.sim * 100),
+      role: item.isCenter ? 'seed' : (item.totalPull > 0.55 ? 'bridge / leaning' : 'local neighbor'),
+      destination: item.bestDestination || '',
+      pulls: item.pulls.filter(p => p.score > 0).map(p => ({ name: anchorSets[p.idx].name, score: Math.round(p.score * 100) }))
+    });
+
+    let groupClass = '';
+    if (!item.isCenter) {
+      if (guidedTop.has(item.word)) groupClass = 'hex-guided-top';
+      else if (guidedSecondary.has(item.word)) groupClass = 'hex-guided-secondary';
+      else groupClass = 'hex-guided';
+    }
+
+    html += `
+      <g class="hex ${groupClass}" transform="translate(${item.px},${item.py})" data-w="${esc(item.word)}" data-info='${escA(dataInfo)}'>
+        <polygon class="hex-bg" points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />
+        ${renderHexLabel(item)}
+      </g>
+    `;
+  });
+
+  svg.innerHTML = html;
+  renderCompassReadout(guidedWords);
+  if (autoFitPending) {
+    fitViewToContent(grid, satellites);
+    autoFitPending = false;
+  } else {
+    applyVB();
+  }
+  initInteractions();
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS & UI
+// ══════════════════════════════════════════════════════════════
+
+function hexRing(n) {
+  const c = [];
+  let q = 0, r = -n;
+  const dirs = [[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+  for (let d = 0; d < 6; d++) {
+    for (let s = 0; s < n; s++) {
+      c.push([q, r]); q += dirs[d][0]; r += dirs[d][1];
+    }
+  }
+  return c;
+}
+
+function buildHexCells(maxRing, hexW, hexH) {
+  const cells = [];
+  for (let ring = 0; ring <= maxRing; ring++) {
+    const coords = ring === 0 ? [[0, 0]] : hexRing(ring);
+    coords.forEach(([q, r]) => {
+      cells.push({
+        q,
+        r,
+        ring,
+        px: hexW * (q + r * 0.5),
+        py: hexH * 0.75 * r
+      });
+    });
+  }
+  return cells;
+}
+
+function buildAnchorBodies(satRadius, hexW, hexH) {
+  return anchorSets.map((s, i) => {
+    const angle = (i * 2 * Math.PI) / Math.max(anchorSets.length, 1) - (Math.PI / 2);
+    const x = Math.cos(angle) * satRadius;
+    const y = Math.sin(angle) * satRadius;
+    const sourceWords = [...s.words];
+    const subclusters = sourceWords.map((sourceWord, sourceIdx) => {
+      const localAngle = angle + (sourceIdx / Math.max(1, sourceWords.length)) * Math.PI * 2;
+      const localRadius = sourceWords.length > 1 ? 92 : 0;
+      return {
+        sourceWord,
+        x: x + Math.cos(localAngle) * localRadius,
+        y: y + Math.sin(localAngle) * localRadius
+      };
+    });
+
+    const nodesBySource = new Map(sourceWords.map(word => [word, []]));
+    s.graphNodes.forEach(node => {
+      const dominant = node.sourceHits[0]?.sourceWord || sourceWords[0];
+      if (!nodesBySource.has(dominant)) nodesBySource.set(dominant, []);
+      nodesBySource.get(dominant).push(node);
+    });
+
+    const nodes = placeAnchorNodesOnHexes(s, { x, y }, subclusters, nodesBySource, hexW, hexH);
+
+    return { x, y, angle, name: s.name, color: s.color, nodes, subclusters, set: s };
+  });
+}
+
+function placeAnchorNodesOnHexes(set, center, subclusters, nodesBySource, hexW, hexH) {
+  const islandCells = buildHexCells(4, hexW * 0.24, hexH * 0.24)
+    .sort((a, b) => a.ring - b.ring)
+    .map(cell => ({
+      ...cell,
+      px: center.x + cell.px,
+      py: center.y + cell.py
+    }));
+
+  const candidates = [];
+  subclusters.forEach(cluster => {
+    const sourceNodes = (nodesBySource.get(cluster.sourceWord) || []).slice(0, 5);
+    const dirX = cluster.x - center.x;
+    const dirY = cluster.y - center.y;
+    const dirLen = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
+    const unitX = dirX / dirLen;
+    const unitY = dirY / dirLen;
+
+    sourceNodes.forEach((node, idx) => {
+      const radial = idx === 0 ? 0 : 22 + idx * 12;
+      const tangent = ((idx % 2 === 0 ? 1 : -1) * (10 + idx * 3));
+      const tanX = -unitY;
+      const tanY = unitX;
+      candidates.push({
+        sourceWord: cluster.sourceWord,
+        node,
+        idx,
+        idealX: center.x + unitX * radial + tanX * tangent,
+        idealY: center.y + unitY * radial + tanY * tangent
+      });
+    });
+  });
+
+  candidates.sort((a, b) => {
+    const aPrimary = a.node.word === a.sourceWord || a.idx === 0 ? 1 : 0;
+    const bPrimary = b.node.word === b.sourceWord || b.idx === 0 ? 1 : 0;
+    if (bPrimary !== aPrimary) return bPrimary - aPrimary;
+    return (b.node.aggregate || 0) - (a.node.aggregate || 0);
+  });
+
+  const available = [...islandCells];
+  const placed = [];
+  candidates.forEach(candidate => {
+    if (!available.length) return;
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    available.forEach((cell, idx) => {
+      const dx = cell.px - candidate.idealX;
+      const dy = cell.py - candidate.idealY;
+      const dist = dx * dx + dy * dy + cell.ring * 18;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = idx;
+      }
+    });
+    const cell = available.splice(bestIdx, 1)[0];
+    const isPrimary = candidate.node.word === candidate.sourceWord || candidate.idx === 0;
+    placed.push({
+      px: cell.px,
+      py: cell.py,
+      sourceWord: candidate.sourceWord,
+      weight: candidate.node.aggregate,
+      word: candidate.node.word,
+      isPrimary,
+      showLabel: false,
+      fill: isPrimary ? lerpColor('#fcfcfa', set.color.fill, 0.94) : lerpColor('#fcfcfa', set.color.fill, 0.68),
+      info: {
+        w: candidate.node.word,
+        sim: 0,
+        role: isPrimary ? 'anchor word' : `anchor zone / ${candidate.sourceWord}`,
+        destination: `${set.name} → ${candidate.sourceWord}`,
+        pulls: [{ name: set.name, score: Math.round(Math.min(1, candidate.node.aggregate) * 100) }]
+      }
+    });
+  });
+
+  const labelsBySource = new Map();
+  placed.forEach(node => {
+    if (node.isPrimary && !labelsBySource.has(node.sourceWord)) labelsBySource.set(node.sourceWord, 1);
+  });
+  placed.forEach(node => {
+    if (node.isPrimary) {
+      node.showLabel = true;
+      return;
+    }
+    const used = labelsBySource.get(node.sourceWord) || 0;
+    if (used < 2) {
+      node.showLabel = true;
+      labelsBySource.set(node.sourceWord, used + 1);
+    }
+  });
+
+  return placed;
+}
+
+function placeLocalNodesOnHexes(nodes, localCells, satellites, hexR) {
+  const available = [...localCells];
+  const placed = [];
+  const sorted = nodes.map(node => {
+    let angle;
+    if (node.targetWeight > 0) {
+      angle = Math.atan2(node.targetY, node.targetX);
+    } else {
+      let hash = 0;
+      for (let i = 0; i < node.word.length; i++) hash += node.word.charCodeAt(i);
+      angle = ((hash % 360) / 360) * Math.PI * 2;
+    }
+    const normalizedPull = Math.min(1, node.totalPull / Math.max(1, satellites.length * 0.7));
+    const baseRadius = (1 - node.sim) * (hexR * 3.8) + hexR * 0.4;
+    const pullRadius = normalizedPull * hexR * 2.1;
+    const graphBias = node.targetWeight > 0
+      ? projectTowards(node.targetX, node.targetY, baseRadius + pullRadius)
+      : { x: Math.cos(angle) * (baseRadius + pullRadius), y: Math.sin(angle) * (baseRadius + pullRadius) };
+    return { ...node, angle, idealX: graphBias.x, idealY: graphBias.y, normalizedPull };
+  }).sort((a, b) => {
+    if (b.totalPull !== a.totalPull) return b.totalPull - a.totalPull;
+    return b.sim - a.sim;
+  });
+
+  sorted.forEach(node => {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    available.forEach((cell, idx) => {
+      const dx = cell.px - node.idealX;
+      const dy = cell.py - node.idealY;
+      const dist = dx * dx + dy * dy + cell.ring * (node.totalPull > 0 ? 0 : 250);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = idx;
+      }
+    });
+    const cell = available.splice(bestIdx, 1)[0];
+    placed.push({ ...node, px: cell.px, py: cell.py });
+  });
+
+  return placed;
+}
+
+async function computeAccessProfile(word, satellites) {
+  const fingerprint = await getWordFingerprintMap(word, 20, 12);
+  let targetX = 0;
+  let targetY = 0;
+  let targetWeight = 0;
+  let totalPull = 0;
+  let bestDestination = '';
+  let bestDestinationScore = 0;
+
+  const pulls = satellites.map((sat, idx) => {
+    const set = sat.set;
+    const sourceMatches = set.wordClouds.map(cloud => {
+      const direct = cloud.sourceWord === word ? 1 : 0;
+      const exact = cloud.map.get(word) || 0;
+      const sourcePresence = fingerprint.get(cloud.sourceWord) || 0;
+      const overlap = overlapScore(fingerprint, cloud.map);
+      const score = Math.max(direct, exact, sourcePresence * 0.92, overlap * 0.88);
+      return { sourceWord: cloud.sourceWord, score };
+    }).filter(match => match.score > 0);
+
+    let setScore = 0;
+    sourceMatches.forEach(match => {
+      setScore = Math.max(setScore, match.score);
+      const subcluster = sat.subclusters.find(cluster => cluster.sourceWord === match.sourceWord);
+      if (!subcluster) return;
+      const sourceNodes = sat.nodes.filter(node => node.sourceWord === match.sourceWord);
+      sourceNodes.forEach(node => {
+        const nodeWeight = match.score * (node.weight || 0.4);
+        targetX += node.px * nodeWeight;
+        targetY += node.py * nodeWeight;
+        targetWeight += nodeWeight;
+      });
+      if (!sourceNodes.length) {
+        targetX += subcluster.x * match.score;
+        targetY += subcluster.y * match.score;
+        targetWeight += match.score;
+      }
+      if (match.score > bestDestinationScore) {
+        bestDestinationScore = match.score;
+        bestDestination = `${set.name} → ${match.sourceWord}`;
+      }
+    });
+
+    totalPull += setScore;
+    return {
+      idx,
+      name: set.name,
+      score: setScore,
+      destinations: sourceMatches.slice(0, 3)
+    };
+  });
+
+  return {
+    pulls,
+    totalPull,
+    targetX,
+    targetY,
+    targetWeight,
+    bestDestination
+  };
+}
+
+function overlapScore(fingerprint, cloudMap) {
+  let total = 0;
+  let count = 0;
+  fingerprint.forEach((score, term) => {
+    if (!cloudMap.has(term)) return;
+    total += Math.min(score, cloudMap.get(term));
+    count += 1;
+  });
+  if (!count) return 0;
+  return Math.min(1, total / Math.max(1, count * 0.42));
+}
+
+function projectTowards(x, y, radius) {
+  const len = Math.sqrt(x * x + y * y) || 1;
+  return {
+    x: (x / len) * radius,
+    y: (y / len) * radius
+  };
+}
+
+function fitViewToContent(grid, satellites) {
+  const svg = document.getElementById('hex-svg');
+  const width = svg.clientWidth || 1200;
+  const height = svg.clientHeight || 900;
+  const points = [];
+
+  grid.forEach(item => {
+    points.push([item.px, item.py, item.isCenter ? 90 : 64]);
+  });
+
+  if (!points.length) {
+    applyVB();
+    return;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  points.forEach(([x, y, r]) => {
+    minX = Math.min(minX, x - r);
+    maxX = Math.max(maxX, x + r);
+    minY = Math.min(minY, y - r);
+    maxY = Math.max(maxY, y + r);
+  });
+
+  const padding = 96;
+  minX -= padding;
+  minY -= padding;
+  maxX += padding;
+  maxY += padding;
+
+  const contentW = Math.max(360, maxX - minX);
+  const contentH = Math.max(280, maxY - minY);
+  const aspect = width / Math.max(height, 1);
+  let finalW = contentW;
+  let finalH = contentH;
+
+  if (contentW / contentH > aspect) {
+    finalH = contentW / aspect;
+  } else {
+    finalW = contentH * aspect;
+  }
+
+  const contentCenterX = (minX + maxX) / 2;
+  const contentCenterY = (minY + maxY) / 2;
+  vb = {
+    x: contentCenterX - finalW * 0.5,
+    y: contentCenterY - finalH * 0.5,
+    w: finalW,
+    h: finalH
+  };
+  applyVB();
+}
+
+function rankGuidedWords(localGrid) {
+  return [...localGrid]
+    .filter(node => node.bestDestination)
+    .sort((a, b) => guidedScore(b) - guidedScore(a));
+}
+
+function guidedScore(node) {
+  return (node.totalPull * 0.55) + (node.sim * 0.3) + (node.targetWeight > 0 ? 0.15 : 0);
+}
+
+function renderCompassReadout(guidedWords) {
+  const el = document.getElementById('compass-readout');
+  if (!guidedWords.length) {
+    el.innerHTML = '';
+    return;
+  }
+  const ranked = guidedWords.slice(0, 3);
+
+  if (!ranked.length) {
+    el.innerHTML = `<div class="compass-kicker">compass</div><div class="compass-row"><span>mapping weak routes</span><span class="compass-dest">refine anchors</span></div>`;
+    return;
+  }
+  const suggestedNames = buildNameSuggestions(ranked);
+
+  el.innerHTML = `
+    <div class="compass-kicker">guided hops</div>
+    ${ranked.map(node => `
+      <div class="compass-row">
+        <span class="compass-word">${esc(node.word)}</span>
+        <span class="compass-strength">${Math.round(node.totalPull * 100)}%</span>
+      </div>
+    `).join('')}
+    <div class="name-suggestions">
+      <div class="compass-kicker">candidate names</div>
+      ${suggestedNames.map(name => `<span class="name-chip">${esc(name)}</span>`).join('')}
+    </div>
+    <div class="compass-note">Darker cells are stronger routes. Drag to pan. Double-click the field to recenter.</div>
+  `;
+}
+
+function buildNameSuggestions(ranked) {
+  const lead = titleWord(currentWord || ranked[0]?.word || 'assistant');
+  const routes = ranked.map(node => ({
+    hop: titleWord(node.word),
+    dest: titleWord((node.bestDestination || '').split('→')[1]?.trim() || '')
+  }));
+  const suggestions = [
+    `${lead} Atlas`,
+    `${lead} Lab`,
+    `${lead} Signal`,
+    `${lead} Foundry`
+  ];
+  routes.forEach(route => {
+    if (route.hop && route.hop !== lead) suggestions.push(`${lead} ${route.hop}`);
+    if (route.dest && route.dest !== lead) suggestions.push(`${route.dest} ${lead}`);
+  });
+  return [...new Set(suggestions)].slice(0, 6);
+}
+
+function colorForNode(pulls, totalPull) {
+  const active = pulls.filter(p => p.score > 0).sort((a, b) => b.score - a.score);
+  if (!active.length) return 'var(--bg-primary)';
+  const lead = anchorSets[active[0].idx].color.fill;
+  const strength = Math.max(0.32, Math.min(0.92, totalPull / Math.max(1, anchorSets.length * 0.82)));
+  if (active.length === 1) {
+    return lerpColor('#fcfcfa', lead, strength);
+  }
+  const second = anchorSets[active[1].idx].color.fill;
+  const blend = lerpColor(lead, second, 0.5);
+  return lerpColor('#fcfcfa', blend, strength);
+}
+
+function renderHexLabel(item) {
+  const isCenter = item.isCenter;
+  const className = isCenter ? 'hex-label-center' : (item.totalPull > 0.5 ? 'hex-label-hit' : 'hex-label');
+  const fontSize = isCenter ? 16 : computeHexFontSize(item.word);
+  const lines = breakLabel(item.word, isCenter ? 12 : 9);
+  const lineHeight = isCenter ? 15 : 10.5;
+  const startDy = lines.length === 1 ? 0 : -((lines.length - 1) * lineHeight) / 2;
+  return `
+    <text class="${className}" x="0" y="0" style="font-size:${fontSize}px">
+      ${lines.map((line, idx) => `<tspan x="0" dy="${idx === 0 ? startDy : lineHeight}">${esc(line)}</tspan>`).join('')}
+    </text>
+  `;
+}
+
+function breakLabel(word, maxLen) {
+  const clean = word.trim();
+  if (clean.length <= maxLen) return [clean];
+  const parts = clean.split(/[\s-]+/).filter(Boolean);
+  if (parts.length > 1) {
+    const first = parts[0].slice(0, maxLen);
+    const rest = parts.slice(1).join(' ');
+    if (rest.length <= maxLen) return [first, rest];
+    return [first, `${rest.slice(0, Math.max(4, maxLen - 1))}…`];
+  }
+  return [`${clean.slice(0, Math.max(4, maxLen - 1))}…`];
+}
+
+function computeHexFontSize(word) {
+  if (word.length <= 5) return 12.4;
+  if (word.length <= 8) return 10.8;
+  if (word.length <= 12) return 9.4;
+  return 8.3;
+}
+
+function titleWord(word) {
+  if (!word) return '';
+  return word
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function hexPts(r) {
+  const p = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    p.push(`${(Math.cos(a)*r).toFixed(1)},${(Math.sin(a)*r).toFixed(1)}`);
+  }
+  return p.join(' ');
+}
+
+function lerpColor(a, b, t) {
+  const ah = parseInt(a.replace('#',''), 16), bh = parseInt(b.replace('#',''), 16);
+  const ar = ah >> 16, ag = ah >> 8 & 0xff, ab = ah & 0xff;
+  const br = bh >> 16, bg = bh >> 8 & 0xff, bb = bh & 0xff;
+  const rr = ar + (br - ar) * t, rg = ag + (bg - ag) * t, rb = ab + (bb - ab) * t;
+  return `rgb(${Math.round(rr)},${Math.round(rg)},${Math.round(rb)})`;
+}
+
+function blendPullColors(pulls) {
+  const active = pulls.filter(p => p.score > 0);
+  if (!active.length) return 'var(--bg-primary)';
+  let total = 0;
+  let r = 252, g = 252, b = 250;
+  active.forEach(p => {
+    const color = anchorSets[p.idx].color.fill.replace('#', '');
+    const weight = p.score;
+    total += weight;
+    r += ((parseInt(color.slice(0, 2), 16)) - 252) * weight;
+    g += ((parseInt(color.slice(2, 4), 16)) - 252) * weight;
+    b += ((parseInt(color.slice(4, 6), 16)) - 250) * weight;
+  });
+  const scale = total ? Math.min(1, total / 1.25) : 0;
+  return `rgb(${Math.round(252 + (r - 252) * scale / Math.max(total, 1))},${Math.round(252 + (g - 252) * scale / Math.max(total, 1))},${Math.round(250 + (b - 250) * scale / Math.max(total, 1))})`;
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function escA(s) { return s.replace(/'/g,'&apos;').replace(/"/g,'&quot;'); }
+
+function renderSetsUI() {
+  const list = document.getElementById('sets-list');
+  list.innerHTML = anchorSets.map((s, i) => `
+    <div class="set-entry" onclick="removeSet(${i})">
+      <span class="set-mark" style="background:${s.color.stroke}"></span>
+      <span>${esc(s.name)}</span>
+      <span style="font-size:10px; opacity:0.5; margin-left:4px">${s.words.size} words</span>
+    </div>
+  `).join('');
+}
+
+function toggleSets() {
+  const p = document.getElementById('sets-panel');
+  p.classList.toggle('on');
+  document.getElementById('btn-sets').classList.toggle('on');
+}
+
+function closeSetsPanel() {
+  document.getElementById('sets-panel').classList.remove('on');
+  document.getElementById('btn-sets').classList.remove('on');
+  document.getElementById('set-add-area').style.display = 'none';
+}
+
+async function clearSets() {
+  anchorSets = [];
+  renderSetsUI();
+  currentSeedAccess = { pulls: [], totalPull: 0, targetX: 0, targetY: 0, targetWeight: 0, bestDestination: '' };
+}
+
+async function loadPresetBio() {
+  await clearSets();
+  await addSet('scientific rigor', ['biology', 'experiment', 'evidence', 'assay', 'analysis', 'hypothesis']);
+  await addSet('institutional memory', ['notebook', 'archive', 'history', 'provenance', 'record', 'trace']);
+  await addSet('research partner', ['assistant', 'advisor', 'collaborator', 'scientist', 'guide', 'copilot']);
+  document.getElementById('search').value = 'assistant';
+  closeSetsPanel();
+  explore('assistant');
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('btn-hex').classList.toggle('on', view === 'hex');
+}
+
+function refreshCurrentView() {
+  if (currentWord) {
+    explore(currentWord, currentMode);
+  }
+}
+
+function initInteractions() {
+  const svg = document.getElementById('hex-svg');
+  const tt = document.getElementById('tooltip');
+  const main = document.getElementById('main');
+
+  svg.onclick = e => {
+    const g = e.target.closest('g.hex');
+    if (g && g.dataset.w) explore(g.dataset.w, currentMode);
+  };
+
+  svg.onmousemove = e => {
+    const g = e.target.closest('g.hex');
+    if (g) {
+      const data = JSON.parse(g.dataset.info);
+      let h = `<div class="tt-word">${esc(data.w)}</div>`;
+      if (data.role) {
+        h += `<div class="tt-section-label">Role</div>`;
+        h += `<div class="tt-row"><span>Field Position</span><span class="tt-val">${esc(data.role)}</span></div>`;
+      }
+      if (data.destination) {
+        h += `<div class="tt-row"><span>Vector</span><span class="tt-val">${esc(data.destination)}</span></div>`;
+      }
+      
+      h += `<div class="tt-section-label">Direct Similarity</div>`;
+      h += `<div class="tt-row"><span>Central Term</span><span class="tt-val">${data.sim}%</span></div>`;
+      h += `<div class="tt-bar-bg"><div class="tt-bar-fg" style="width:${data.sim}%"></div></div>`;
+      
+      if (data.pulls.length) {
+        h += `<div class="tt-section-label" style="margin-top:12px">Anchor Pull (Wider Net)</div>`;
+        data.pulls.sort((a,b) => b.score - a.score).forEach(p => {
+          h += `<div class="tt-row"><span>${esc(p.name)}</span><span class="tt-val">${p.score}%</span></div>`;
+          h += `<div class="tt-bar-bg"><div class="tt-bar-fg" style="width:${p.score}%"></div></div>`;
+        });
+      }
+      
+      tt.innerHTML = h;
+      tt.style.display = 'flex';
+      
+      const rect = main.getBoundingClientRect();
+      let x = e.clientX - rect.left + 20;
+      let y = e.clientY - rect.top + 20;
+      if (x + 260 > rect.width) x -= 280;
+      if (y + 200 > rect.height) y -= 220;
+      tt.style.left = x + 'px';
+      tt.style.top = y + 'px';
+    } else {
+      tt.style.display = 'none';
+    }
+  };
+
+  svg.onmouseleave = () => tt.style.display = 'none';
+}
+
+function renderTrail() {
+  const t = document.getElementById('trail');
+  const recent = history.slice(-3).map(w => `<span class="crumb" onclick="explore('${w}')">${esc(w)}</span>`);
+  let h = recent.join(`<span style="color:var(--line)">/</span>`);
+  if (h) h += `<span style="color:var(--line)">/</span>`;
+  h += `<span class="crumb crumb-now">${esc(currentWord)}</span>`;
+  t.innerHTML = h;
+}
+
+// ── View Logic ──
+const svgEl = document.getElementById('hex-svg');
+function applyVB() { svgEl.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+
+let isDragging = false;
+let lastDrag = null;
+svgEl.onmousedown = e => {
+  if (e.target.closest('g.hex')) return;
+  isDragging = true;
+  lastDrag = { x: e.clientX, y: e.clientY };
+  svgEl.classList.add('dragging');
+};
+
+window.onmousemove = e => {
+  if (!isDragging || !lastDrag) return;
+  const rect = svgEl.getBoundingClientRect();
+  const dx = (e.clientX - lastDrag.x) * (vb.w / rect.width);
+  const dy = (e.clientY - lastDrag.y) * (vb.h / rect.height);
+  vb.x -= dx;
+  vb.y -= dy;
+  lastDrag = { x: e.clientX, y: e.clientY };
+  applyVB();
+};
+
+window.onmouseup = () => {
+  isDragging = false;
+  lastDrag = null;
+  svgEl.classList.remove('dragging');
+};
+
+svgEl.ondblclick = () => {
+  autoFitPending = true;
+  renderHexField();
+};
+
+// ── Search & Controls ──
+document.getElementById('search').onkeydown = e => {
+  if (e.key === 'Enter') explore(e.target.value);
+};
+
+const escapesEl = document.getElementById('escapes');
+if (escapesEl) {
+  escapesEl.onclick = e => {
+    const b = e.target.closest('.esc');
+    if (!b) return;
+    if (b.dataset.m === 'random') { explore(SEEDS[Math.floor(Math.random()*SEEDS.length)]); return; }
+    document.querySelectorAll('.esc').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    explore(currentWord, b.dataset.m);
+  };
+}
+
+function removeSet(i) {
+  anchorSets.splice(i, 1);
+  renderSetsUI();
+  if (currentWord) renderHexField();
+}
+
+function showAddMode(mode) {
+  const area = document.getElementById('set-add-area');
+  area.style.display = 'block';
+  if (mode === 'paste') {
+    area.innerHTML = `
+      <input type="text" id="sa-name" placeholder="set name" style="width:100%; margin-bottom:10px; padding:10px;">
+      <textarea id="sa-words" placeholder="paste words here" style="width:100%; height:80px; padding:10px;"></textarea>
+      <button class="set-btn" onclick="commitPaste()">save set</button>
+    `;
+  } else {
+    area.innerHTML = `
+      <input type="text" id="sa-concept" placeholder="concept word (e.g. 'biology')" style="width:100%; margin-bottom:10px; padding:10px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-tertiary);margin-bottom:10px;">builds a multi-word anchor set from one concept</div>
+      <button class="set-btn" onclick="commitGen()">generate set</button>
+    `;
+  }
+}
+
+async function commitPaste() {
+  const name = document.getElementById('sa-name').value;
+  const words = document.getElementById('sa-words').value.split(/[\s,]+/).filter(x => x.length > 1);
+  await addSet(name, words);
+  closeSetsPanel();
+}
+
+async function commitGen() {
+  const c = document.getElementById('sa-concept').value;
+  const entries = await getWordFingerprintEntries(c, 14, 8);
+  const generated = entries
+    .map(entry => entry.word)
+    .filter(word => word !== c.toLowerCase())
+    .slice(0, 5);
+  await addSet(c, [c.toLowerCase(), ...generated]);
+  closeSetsPanel();
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+explore('meaning');
+</script>
+</body>
+</html>

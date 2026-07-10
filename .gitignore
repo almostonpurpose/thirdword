@@ -1,0 +1,6 @@
+.DS_Store
+Thumbs.db
+
+# Personal design-system prompts kept locally, not part of this project
+additional_guide.xml
+generalized_design_brief.md

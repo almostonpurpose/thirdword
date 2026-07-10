@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Semantic Explorer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f5f2ec;
+  color: #3a3632;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+#top {
+  padding: 12px 20px 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+#search {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 16px;
+  background: #fff;
+  border: 1.5px solid #ddd8d0;
+  color: #2a2622;
+  font-family: 'DM Mono', monospace;
+  border-radius: 5px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+#search:focus { border-color: #9a8a72; }
+#search::placeholder { color: #c5bfb4; }
+
+.tb {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 7px 10px;
+  background: #fff;
+  border: 1px solid #ddd8d0;
+  border-radius: 5px;
+  color: #a09888;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tb:hover { border-color: #9a8a72; color: #3a3228; }
+.tb.on { border-color: #9a8a72; color: #3a3228; background: #efe9e0; }
+
+#status {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: #a09888;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ── Sets panel ── */
+#sets-panel {
+  display: none;
+  padding: 8px 20px;
+  gap: 8px;
+  flex-shrink: 0;
+  z-index: 20;
+  align-items: flex-start;
+}
+#sets-panel.on { display: flex; }
+
+.set-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.set-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.set-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.set-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  background: #fff;
+  border: 1px solid #ddd8d0;
+  border-radius: 4px;
+  color: #3a3632;
+  outline: none;
+  resize: none;
+}
+.set-input:focus { border-color: #9a8a72; }
+.set-input::placeholder { color: #c5bfb4; }
+
+.set-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: #b0a898;
+  margin-top: 2px;
+}
+
+/* ── Trail ── */
+#trail {
+  padding: 4px 20px 0;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  min-height: 16px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+.crumb { color: #a09080; cursor: pointer; padding: 1px 5px; border-radius: 3px; }
+.crumb:hover { color: #3a3228; background: #e8e2d8; }
+.crumb-sep { color: #d0c8bc; font-size: 10px; }
+.crumb-now { color: #5a6e8a; font-weight: 500; }
+
+/* ── Main ── */
+#main { flex: 1; position: relative; overflow: hidden; }
+
+#hex-view { position: absolute; inset: 0; }
+#hex-svg { width: 100%; height: 100%; cursor: grab; }
+#hex-svg:active { cursor: grabbing; }
+#hex-svg .hex { cursor: pointer; }
+#hex-svg .hex:hover .hex-bg { filter: brightness(0.9); }
+
+.hex-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: #5a5650;
+  pointer-events: none;
+}
+.hex-label-hit { fill: #1a1a18; font-weight: 500; }
+.hex-label-center { fill: #3a4a6a; font-weight: 700; font-size: 14px; }
+
+/* ── Columns ── */
+#col-view { position: absolute; inset: 0; display: none; padding: 10px 20px 60px; gap: 12px; overflow-y: auto; }
+#col-view.on { display: flex; }
+.col { flex: 1; min-width: 0; }
+.col-hdr { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #a09888; padding: 0 0 6px; border-bottom: 1px solid #e8e2d8; margin-bottom: 4px; }
+.col-item { padding: 6px 8px; border-radius: 4px; margin-bottom: 2px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; align-items: center; transition: filter 0.12s; }
+.col-item:hover { filter: brightness(0.94); }
+.col-meta { font-family: 'DM Mono', monospace; font-size: 10px; color: #b0a898; }
+
+/* ── Bottom ── */
+#bottom { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; padding-bottom: 10px; pointer-events: none; z-index: 15; }
+#legend { display: none; align-items: center; gap: 10px; font-size: 10px; font-family: 'DM Mono', monospace; color: #b0a898; margin-bottom: 5px; }
+#legend.on { display: flex; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+#escapes { display: none; gap: 5px; pointer-events: auto; }
+#escapes.on { display: flex; }
+.esc { font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 11px; background: rgba(255,255,255,0.9); border: 1px solid #ddd8d0; border-radius: 14px; color: #8a7e70; cursor: pointer; transition: all 0.15s; backdrop-filter: blur(4px); }
+.esc:hover { border-color: #9a8a72; color: #3a3228; }
+.esc.on { border-color: #9a8a72; color: #3a3228; background: rgba(240,235,226,0.95); }
+
+#loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #b0a898; font-size: 13px; font-family: 'DM Mono', monospace; display: none; z-index: 5; }
+#loading.on { display: block; }
+.spin { display: inline-block; animation: sp 0.8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+#intro { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; color: #c5bfb4; font-size: 15px; line-height: 2.2; pointer-events: none; }
+#intro span { font-size: 12px; color: #d0c8bc; font-family: 'DM Mono', monospace; }
+
+#zoom-hint { position: absolute; top: 6px; right: 10px; font-family: 'DM Mono', monospace; font-size: 10px; color: #ccc5b8; z-index: 10; display: none; }
+#zoom-hint.on { display: block; }
+</style>
+</head>
+<body>
+
+<div id="top">
+  <input type="text" id="search" placeholder="type a word..." autofocus>
+  <button class="tb on" id="btn-hex" onclick="setView('hex')">hex</button>
+  <button class="tb" id="btn-col" onclick="setView('col')">columns</button>
+  <button class="tb" id="btn-sets" onclick="toggleSets()">sets</button>
+  <div id="status">loading...</div>
+</div>
+
+<div id="sets-panel">
+  <div class="set-box">
+    <div class="set-label"><span class="set-dot" style="background:#2a8a55"></span> <span style="color:#2a8a55">TLDs</span></div>
+    <div class="set-count" id="tld-count"></div>
+  </div>
+  <div class="set-box">
+    <div class="set-label"><span class="set-dot" style="background:#6a5acd"></span> <span style="color:#6a5acd">Custom set</span></div>
+    <textarea class="set-input" id="custom-input" rows="2" placeholder="comma-separated words, e.g. rabbit, hole, tangent, curiosity"></textarea>
+    <div class="set-count" id="custom-count">0 words</div>
+  </div>
+</div>
+
+<div id="trail"></div>
+
+<div id="main">
+  <div id="hex-view"><svg id="hex-svg"></svg></div>
+  <div id="col-view"></div>
+  <div id="loading"><span class="spin">&#9684;</span> exploring...</div>
+  <div id="intro">type anything to begin<br><span>click words to wander &middot; toggle "sets" to add your own anchors</span></div>
+  <div id="zoom-hint">scroll to zoom &middot; drag to pan &middot; double-click to reset</div>
+  <div id="bottom">
+    <div id="legend">
+      <span><span class="leg-dot" style="background:#2a8a55"></span> TLD</span>
+      <span><span class="leg-dot" style="background:#6a5acd"></span> custom set</span>
+      <span><span class="leg-dot" style="background:linear-gradient(90deg,#2a8a55 50%,#6a5acd 50%)"></span> both</span>
+    </div>
+    <div id="escapes">
+      <button class="esc on" data-m="ml">similar</button>
+      <button class="esc" data-m="rel_trg">tangent</button>
+      <button class="esc" data-m="rel_ant">flip</button>
+      <button class="esc" data-m="rel_gen">zoom out</button>
+      <button class="esc" data-m="rel_spc">zoom in</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const TLD_IDS = ["aaa", "aarp", "abb", "abbott", "abbvie", "abc", "able", "abogado", "abudhabi", "ac", "academy", "accenture", "accountant", "accountants", "aco", "actor", "ad", "ads", "adult", "ae", "aeg", "aero", "aetna", "af", "afl", "africa", "ag", "agakhan", "agency", "ai", "aig", "airbus", "airforce", "airtel", "akdn", "al", "alibaba", "alipay", "allfinanz", "allstate", "ally", "alsace", "alstom", "am", "amazon", "americanexpress", "americanfamily", "amex", "amfam", "amica", "amsterdam", "analytics", "android", "anquan", "anz", "ao", "aol", "apartments", "app", "apple", "aq", "aquarelle", "ar", "arab", "aramco", "archi", "army", "arpa", "art", "arte", "as", "asda", "asia", "associates", "at", "athleta", "attorney", "au", "auction", "audi", "audible", "audio", "auspost", "author", "auto", "autos", "aw", "aws", "ax", "axa", "az", "azure", "ba", "baby", "baidu", "banamex", "band", "bank", "bar", "barcelona", "barclaycard", "barclays", "barefoot", "bargains", "baseball", "basketball", "bauhaus", "bayern", "bb", "bbc", "bbt", "bbva", "bcg", "bcn", "bd", "be", "beats", "beauty", "beer", "berlin", "best", "bestbuy", "bet", "bf", "bg", "bh", "bharti", "bi", "bible", "bid", "bike", "bing", "bingo", "bio", "biz", "bj", "black", "blackfriday", "blockbuster", "blog", "bloomberg", "blue", "bm", "bms", "bmw", "bn", "bnpparibas", "bo", "boats", "boehringer", "bofa", "bom", "bond", "boo", "book", "booking", "bosch", "bostik", "boston", "bot", "boutique", "box", "br", "bradesco", "bridgestone", "broadway", "broker", "brother", "brussels", "bs", "bt", "build", "builders", "business", "buy", "buzz", "bv", "bw", "by", "bz", "bzh", "ca", "cab", "cafe", "cal", "call", "calvinklein", "cam", "camera", "camp", "canon", "capetown", "capital", "capitalone", "car", "caravan", "cards", "care", "career", "careers", "cars", "casa", "case", "cash", "casino", "cat", "catering", "catholic", "cba", "cbn", "cbre", "cc", "cd", "center", "ceo", "cern", "cf", "cfa", "cfd", "cg", "ch", "chanel", "channel", "charity", "chase", "chat", "cheap", "chintai", "christmas", "chrome", "church", "ci", "cipriani", "circle", "cisco", "citadel", "citi", "citic", "city", "ck", "cl", "claims", "cleaning", "click", "clinic", "clinique", "clothing", "cloud", "club", "clubmed", "cm", "cn", "co", "coach", "codes", "coffee", "college", "cologne", "com", "commbank", "community", "company", "compare", "computer", "comsec", "condos", "construction", "consulting", "contact", "contractors", "cooking", "cool", "coop", "corsica", "country", "coupon", "coupons", "courses", "cpa", "cr", "credit", "creditcard", "creditunion", "cricket", "crown", "crs", "cruise", "cruises", "cu", "cuisinella", "cv", "cw", "cx", "cy", "cymru", "cyou", "cz", "dad", "dance", "data", "date", "dating", "datsun", "day", "dclk", "dds", "de", "deal", "dealer", "deals", "degree", "delivery", "dell", "deloitte", "delta", "democrat", "dental", "dentist", "desi", "design", "dev", "dhl", "diamonds", "diet", "digital", "direct", "directory", "discount", "discover", "dish", "diy", "dj", "dk", "dm", "dnp", "do", "docs", "doctor", "dog", "domains", "dot", "download", "drive", "dtv", "dubai", "dupont", "durban", "dvag", "dvr", "dz", "earth", "eat", "ec", "eco", "edeka", "edu", "education", "ee", "eg", "email", "emerck", "energy", "engineer", "engineering", "enterprises", "epson", "equipment", "er", "ericsson", "erni", "es", "esq", "estate", "et", "eu", "eurovision", "eus", "events", "exchange", "expert", "exposed", "express", "extraspace", "fage", "fail", "fairwinds", "faith", "family", "fan", "fans", "farm", "farmers", "fashion", "fast", "fedex", "feedback", "ferrari", "ferrero", "fi", "fidelity", "fido", "film", "final", "finance", "financial", "fire", "firestone", "firmdale", "fish", "fishing", "fit", "fitness", "fj", "fk", "flickr", "flights", "flir", "florist", "flowers", "fly", "fm", "fo", "foo", "food", "football", "ford", "forex", "forsale", "forum", "foundation", "fox", "fr", "free", "fresenius", "frl", "frogans", "frontier", "ftr", "fujitsu", "fun", "fund", "furniture", "futbol", "fyi", "ga", "gal", "gallery", "gallo", "gallup", "game", "games", "gap", "garden", "gay", "gb", "gbiz", "gd", "gdn", "ge", "gea", "gent", "genting", "george", "gf", "gg", "ggee", "gh", "gi", "gift", "gifts", "gives", "giving", "gl", "glass", "gle", "global", "globo", "gm", "gmail", "gmbh", "gmo", "gmx", "gn", "godaddy", "gold", "goldpoint", "golf", "goodyear", "goog", "google", "gop", "got", "gov", "gp", "gq", "gr", "grainger", "graphics", "gratis", "green", "gripe", "grocery", "group", "gs", "gt", "gu", "gucci", "guge", "guide", "guitars", "guru", "gw", "gy", "hair", "hamburg", "hangout", "haus", "hbo", "hdfc", "hdfcbank", "health", "healthcare", "help", "helsinki", "here", "hermes", "hiphop", "hisamitsu", "hitachi", "hiv", "hk", "hkt", "hm", "hn", "hockey", "holdings", "holiday", "homedepot", "homegoods", "homes", "homesense", "honda", "horse", "hospital", "host", "hosting", "hot", "hotels", "hotmail", "house", "how", "hr", "hsbc", "ht", "hu", "hughes", "hyatt", "hyundai", "ibm", "icbc", "ice", "icu", "id", "ie", "ieee", "ifm", "ikano", "il", "im", "imamat", "imdb", "immo", "immobilien", "in", "inc", "industries", "infiniti", "info", "ing", "ink", "institute", "insurance", "insure", "int", "international", "intuit", "investments", "io", "ipiranga", "iq", "ir", "irish", "is", "ismaili", "ist", "istanbul", "it", "itau", "itv", "jaguar", "java", "jcb", "je", "jeep", "jetzt", "jewelry", "jio", "jll", "jm", "jmp", "jnj", "jo", "jobs", "joburg", "jot", "joy", "jp", "jpmorgan", "jprs", "juegos", "juniper", "kaufen", "kddi", "ke", "kerryhotels", "kerryproperties", "kfh", "kg", "kh", "ki", "kia", "kids", "kim", "kindle", "kitchen", "kiwi", "km", "kn", "koeln", "komatsu", "kosher", "kp", "kpmg", "kpn", "kr", "krd", "kred", "kuokgroup", "kw", "ky", "kyoto", "kz", "la", "lacaixa", "lamborghini", "lamer", "land", "landrover", "lanxess", "lasalle", "lat", "latino", "latrobe", "law", "lawyer", "lb", "lc", "lds", "lease", "leclerc", "lefrak", "legal", "lego", "lexus", "lgbt", "li", "lidl", "life", "lifeinsurance", "lifestyle", "lighting", "like", "lilly", "limited", "limo", "lincoln", "link", "live", "living", "lk", "llc", "llp", "loan", "loans", "locker", "locus", "lol", "london", "lotte", "lotto", "love", "lpl", "lplfinancial", "lr", "ls", "lt", "ltd", "ltda", "lu", "lundbeck", "luxe", "luxury", "lv", "ly", "ma", "madrid", "maif", "maison", "makeup", "man", "management", "mango", "map", "market", "marketing", "markets", "marriott", "marshalls", "mattel", "mba", "mc", "mckinsey", "md", "me", "med", "media", "meet", "melbourne", "meme", "memorial", "men", "menu", "merckmsd", "mg", "mh", "miami", "microsoft", "mil", "mini", "mint", "mit", "mitsubishi", "mk", "ml", "mlb", "mls", "mm", "mma", "mn", "mo", "mobi", "mobile", "moda", "moe", "moi", "mom", "monash", "money", "monster", "mormon", "mortgage", "moscow", "moto", "motorcycles", "mov", "movie", "mp", "mq", "mr", "ms", "msd", "mt", "mtn", "mtr", "mu", "museum", "music", "mv", "mw", "mx", "my", "mz", "na", "nab", "nagoya", "name", "navy", "nba", "nc", "ne", "nec", "net", "netbank", "netflix", "network", "neustar", "new", "news", "next", "nextdirect", "nexus", "nf", "nfl", "ng", "ngo", "nhk", "ni", "nico", "nike", "nikon", "ninja", "nissan", "nissay", "nl", "no", "nokia", "norton", "now", "nowruz", "nowtv", "np", "nr", "nra", "nrw", "ntt", "nu", "nyc", "nz", "obi", "observer", "office", "okinawa", "olayan", "olayangroup", "ollo", "om", "omega", "one", "ong", "onl", "online", "ooo", "open", "oracle", "orange", "org", "organic", "origins", "osaka", "otsuka", "ott", "ovh", "pa", "page", "panasonic", "paris", "pars", "partners", "parts", "party", "pay", "pccw", "pe", "pet", "pf", "pfizer", "pg", "ph", "pharmacy", "phd", "philips", "phone", "photo", "photography", "photos", "physio", "pics", "pictet", "pictures", "pid", "pin", "ping", "pink", "pioneer", "pizza", "pk", "pl", "place", "play", "playstation", "plumbing", "plus", "pm", "pn", "pnc", "pohl", "poker", "politie", "porn", "post", "pr", "praxi", "press", "prime", "pro", "prod", "productions", "prof", "progressive", "promo", "properties", "property", "protection", "pru", "prudential", "ps", "pt", "pub", "pw", "pwc", "py", "qa", "qpon", "quebec", "quest", "racing", "radio", "re", "read", "realestate", "realtor", "realty", "recipes", "red", "redumbrella", "rehab", "reise", "reisen", "reit", "reliance", "ren", "rent", "rentals", "repair", "report", "republican", "rest", "restaurant", "review", "reviews", "rexroth", "rich", "richardli", "ricoh", "ril", "rio", "rip", "ro", "rocks", "rodeo", "rogers", "room", "rs", "rsvp", "ru", "rugby", "ruhr", "run", "rw", "rwe", "ryukyu", "sa", "saarland", "safe", "safety", "sakura", "sale", "salon", "samsclub", "samsung", "sandvik", "sandvikcoromant", "sanofi", "sap", "sarl", "sas", "save", "saxo", "sb", "sbi", "sbs", "sc", "scb", "schaeffler", "schmidt", "scholarships", "school", "schule", "schwarz", "science", "scot", "sd", "se", "search", "seat", "secure", "security", "seek", "select", "sener", "services", "seven", "sew", "sex", "sexy", "sfr", "sg", "sh", "shangrila", "sharp", "shell", "shia", "shiksha", "shoes", "shop", "shopping", "shouji", "show", "si", "silk", "sina", "singles", "site", "sj", "sk", "ski", "skin", "sky", "skype", "sl", "sling", "sm", "smart", "smile", "sn", "sncf", "so", "soccer", "social", "softbank", "software", "sohu", "solar", "solutions", "song", "sony", "soy", "spa", "space", "sport", "spot", "sr", "srl", "ss", "st", "stada", "staples", "star", "statebank", "statefarm", "stc", "stcgroup", "stockholm", "storage", "store", "stream", "studio", "study", "style", "su", "sucks", "supplies", "supply", "support", "surf", "surgery", "suzuki", "sv", "swatch", "swiss", "sx", "sy", "sydney", "systems", "sz", "tab", "taipei", "talk", "taobao", "target", "tatamotors", "tatar", "tattoo", "tax", "taxi", "tc", "tci", "td", "tdk", "team", "tech", "technology", "tel", "temasek", "tennis", "teva", "tf", "tg", "th", "thd", "theater", "theatre", "tiaa", "tickets", "tienda", "tips", "tires", "tirol", "tj", "tjmaxx", "tjx", "tk", "tkmaxx", "tl", "tm", "tmall", "tn", "to", "today", "tokyo", "tools", "top", "toray", "toshiba", "total", "tours", "town", "toyota", "toys", "tr", "trade", "trading", "training", "travel", "travelers", "travelersinsurance", "trust", "trv", "tt", "tube", "tui", "tunes", "tushu", "tv", "tvs", "tw", "tz", "ua", "ubank", "ubs", "ug", "uk", "unicom", "university", "uno", "uol", "ups", "us", "uy", "uz", "va", "vacations", "vana", "vanguard", "vc", "ve", "vegas", "ventures", "verisign", "versicherung", "vet", "vg", "vi", "viajes", "video", "vig", "viking", "villas", "vin", "vip", "virgin", "visa", "vision", "viva", "vivo", "vlaanderen", "vn", "vodka", "volvo", "vote", "voting", "voto", "voyage", "vu", "wales", "walmart", "walter", "wang", "wanggou", "watch", "watches", "weather", "weatherchannel", "webcam", "weber", "website", "wed", "wedding", "weibo", "weir", "wf", "whoswho", "wien", "wiki", "williamhill", "win", "windows", "wine", "winners", "wme", "woodside", "work", "works", "world", "wow", "ws", "wtc", "wtf", "xbox", "xerox", "xihuan", "xin", "ye", "yodobashi", "yoga", "yokohama", "you", "youtube", "yt", "yun", "za", "zappos", "zara", "zero", "zip", "zm", "zone", "zuerich", "zw"];
+const tldSet = new Set(TLD_IDS);
+let tldWeb = null;
+let customSet = new Set();
+
+document.getElementById('tld-count').textContent = tldSet.size + ' words';
+
+fetch('tld_web.json').then(r => r.json()).then(d => {
+  tldWeb = d;
+  document.getElementById('status').textContent = tldSet.size + ' TLDs \u00b7 web loaded';
+}).catch(() => {
+  document.getElementById('status').textContent = tldSet.size + ' TLDs';
+});
+
+// ── Custom set input ──
+document.getElementById('custom-input').addEventListener('input', function() {
+  const raw = this.value.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+  customSet = new Set(raw);
+  document.getElementById('custom-count').textContent = customSet.size + ' words';
+  // Re-render if we have data
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+});
+
+function toggleSets() {
+  const panel = document.getElementById('sets-panel');
+  const btn = document.getElementById('btn-sets');
+  panel.classList.toggle('on');
+  btn.classList.toggle('on');
+}
+
+// ── State ──
+let history = [];
+let currentWord = null;
+let currentMode = 'ml';
+let currentView = 'hex';
+let currentNodes = [];
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-hex').classList.toggle('on', v === 'hex');
+  document.getElementById('btn-col').classList.toggle('on', v === 'col');
+  document.getElementById('hex-view').style.display = v === 'hex' ? 'block' : 'none';
+  document.getElementById('col-view').classList.toggle('on', v === 'col');
+  document.getElementById('zoom-hint').classList.toggle('on', v === 'hex' && !!currentWord);
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+}
+
+// ── Search ──
+let deb;
+const searchEl = document.getElementById('search');
+searchEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { clearTimeout(deb); const q = searchEl.value.trim().toLowerCase(); if (q) hop(q); }
+});
+searchEl.addEventListener('input', () => {
+  clearTimeout(deb);
+  const q = searchEl.value.trim().toLowerCase();
+  if (q.length >= 2) deb = setTimeout(() => hop(q), 500);
+});
+
+function hop(word, mode) { currentMode = mode || 'ml'; explore(word, currentMode, false); }
+function hopEscape(mode) { if (!currentWord) return; currentMode = mode; explore(currentWord, mode, true); }
+
+document.getElementById('escapes').addEventListener('click', e => {
+  const btn = e.target.closest('.esc');
+  if (!btn) return;
+  document.querySelectorAll('.esc').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  hopEscape(btn.dataset.m);
+});
+
+document.getElementById('trail').addEventListener('click', e => {
+  const c = e.target.closest('.crumb[data-w]');
+  if (c) hop(c.dataset.w);
+});
+
+// ── Explore ──
+async function explore(word, mode, isEscape) {
+  word = word.toLowerCase().trim();
+  if (!isEscape && word === currentWord && mode === currentMode) return;
+
+  document.getElementById('intro').style.display = 'none';
+  document.getElementById('loading').classList.add('on');
+
+  const q = encodeURIComponent(word);
+  const url = mode === 'ml'
+    ? `https://api.datamuse.com/words?ml=${q}&max=30`
+    : `https://api.datamuse.com/words?${mode}=${q}&max=30`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.length) {
+      document.getElementById('loading').classList.remove('on');
+      document.getElementById('status').textContent = 'no results';
+      return;
+    }
+
+    const maxScore = Math.max(...data.map(r => r.score || 1));
+
+    let nodes = data.map(r => {
+      const w = r.word.toLowerCase();
+      const wc = w.replace(/\s/g, '');
+      const similarity = (r.score || 1) / maxScore;
+
+      // TLD match
+      const isTld = tldSet.has(wc);
+      let tldWarmth = 0, nearbyTlds = [];
+      if (isTld) { tldWarmth = 1; }
+      else if (tldWeb && tldWeb[w]) {
+        nearbyTlds = tldWeb[w].slice(0, 3);
+        tldWarmth = nearbyTlds.reduce((s, t) => s + t.score, 0) / 3;
+      }
+
+      // Custom set match
+      const isCustom = customSet.has(wc) || customSet.has(w);
+      const customWarmth = isCustom ? 1 : 0;
+
+      return { word: w, similarity, tldWarmth, customWarmth, isTld, isCustom, nearbyTlds };
+    });
+
+    const seen = new Set();
+    nodes = nodes.filter(n => {
+      if (seen.has(n.word) || n.word === word) return false;
+      seen.add(n.word);
+      return true;
+    }).slice(0, 24);
+
+    if (!isEscape && currentWord && currentWord !== word) {
+      history.push(currentWord);
+      if (history.length > 15) history.shift();
+    }
+    currentWord = word;
+    currentNodes = nodes;
+
+    render(word, nodes);
+    renderTrail();
+    searchEl.value = word;
+    document.getElementById('escapes').classList.add('on');
+    document.getElementById('legend').classList.add('on');
+    document.getElementById('zoom-hint').classList.toggle('on', currentView === 'hex');
+
+    if (!isEscape) {
+      document.querySelectorAll('.esc').forEach(b => b.classList.remove('on'));
+      document.querySelector('.esc').classList.add('on');
+    }
+
+    const tc = nodes.filter(n => n.isTld).length;
+    const cc = nodes.filter(n => n.isCustom).length;
+    let st = nodes.length + ' words';
+    if (tc) st += ' \u00b7 ' + tc + ' TLDs';
+    if (cc) st += ' \u00b7 ' + cc + ' custom';
+    document.getElementById('status').textContent = st;
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('status').textContent = 'API error';
+  }
+  document.getElementById('loading').classList.remove('on');
+}
+
+function render(w, n) {
+  if (currentView === 'hex') renderHex(w, n);
+  else renderCols(w, n);
+}
+
+// ── Colors ──
+const COL_TLD = '#2a8a55';
+const COL_TLD_FILL = '#d4f0dc';
+const COL_CUSTOM = '#6a5acd';
+const COL_CUSTOM_FILL = '#e0d8f5';
+const COL_NEUTRAL = '#ede8e0';
+const COL_CENTER = '#e0e4f0';
+
+function warmthColorTld(w) {
+  const c = [237,232,224], h = [180,230,195];
+  return `rgb(${c.map((v,i) => Math.round(v + (h[i]-v)*w)).join(',')})`;
+}
+
+function warmthColorCustom(w) {
+  const c = [237,232,224], h = [200,195,235];
+  return `rgb(${c.map((v,i) => Math.round(v + (h[i]-v)*w)).join(',')})`;
+}
+
+// ══════════════════
+// HEX VIEW
+// ══════════════════
+let vb = { x: -400, y: -300, w: 800, h: 600 };
+let dragging = false, dragStart = null;
+
+function renderHex(centerWord, nodes) {
+  const svg = document.getElementById('hex-svg');
+
+  // Sort: hits first (either set), then by combined warmth
+  const sorted = [...nodes].sort((a, b) => {
+    const aHit = (a.isTld || a.isCustom) ? 1 : 0;
+    const bHit = (b.isTld || b.isCustom) ? 1 : 0;
+    if (aHit !== bHit) return bHit - aHit;
+    return (b.tldWarmth + b.customWarmth) - (a.tldWarmth + a.customWarmth);
+  });
+
+  const centerIsTld = tldSet.has(centerWord.replace(/\s/g, ''));
+  const centerIsCustom = customSet.has(centerWord.replace(/\s/g, '')) || customSet.has(centerWord);
+
+  const all = [
+    { word: centerWord, isCenter: true, isTld: centerIsTld, isCustom: centerIsCustom, tldWarmth: centerIsTld ? 1 : 0, customWarmth: centerIsCustom ? 1 : 0 },
+    ...sorted
+  ];
+
+  const hexR = 42;
+  const hexW = Math.sqrt(3) * hexR;
+  const hexH = 2 * hexR;
+  const positions = hexSpiral(all.length);
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  const items = all.map((item, i) => {
+    const [q, r] = positions[i];
+    const px = hexW * (q + r * 0.5);
+    const py = hexH * 0.75 * r;
+    minX = Math.min(minX, px - hexR); minY = Math.min(minY, py - hexR);
+    maxX = Math.max(maxX, px + hexR); maxY = Math.max(maxY, py + hexR);
+    return { ...item, px, py };
+  });
+
+  const pad = 60;
+  vb = { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
+
+  const fullPts = hexPts(hexR);
+  const leftPts = hexHalfPts(hexR, 'left');
+  const rightPts = hexHalfPts(hexR, 'right');
+
+  let s = '';
+  items.forEach(item => {
+    const hasTld = item.isTld || item.tldWarmth > 0.2;
+    const hasCust = item.isCustom;
+    const hasEither = hasTld || hasCust;
+    const dataAttr = item.isCenter ? '' : `data-w="${escA(item.word)}"`;
+
+    let hexContent;
+
+    if (item.isCenter) {
+      // Center hex
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${COL_CENTER}" stroke="#5a6e8a" stroke-width="2.5"/>`;
+    } else if (hasTld && hasCust) {
+      // Split hex: left green, right purple
+      const lf = item.isTld ? COL_TLD_FILL : warmthColorTld(item.tldWarmth);
+      hexContent = `<polygon class="hex-bg" points="${leftPts}" fill="${lf}" stroke="${COL_TLD}" stroke-width="1.5"/>` +
+                   `<polygon class="hex-bg" points="${rightPts}" fill="${COL_CUSTOM_FILL}" stroke="${COL_CUSTOM}" stroke-width="1.5"/>`;
+    } else if (hasTld) {
+      const f = item.isTld ? COL_TLD_FILL : warmthColorTld(item.tldWarmth);
+      const sw = item.isTld ? 2 : 0.8;
+      const sc = item.isTld ? COL_TLD : '#d0c8bc';
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${f}" stroke="${sc}" stroke-width="${sw}"/>`;
+    } else if (hasCust) {
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${COL_CUSTOM_FILL}" stroke="${COL_CUSTOM}" stroke-width="2"/>`;
+    } else {
+      hexContent = `<polygon class="hex-bg" points="${fullPts}" fill="${COL_NEUTRAL}" stroke="#d0c8bc" stroke-width="0.8"/>`;
+    }
+
+    const display = (item.isTld && !item.isCenter) ? '.' + item.word.replace(/\s/g, '') : item.word;
+    const trunc = display.length > 9 ? display.slice(0, 8) + '\u2026' : display;
+    const labelCls = item.isCenter ? 'hex-label hex-label-center' : (hasEither ? 'hex-label hex-label-hit' : 'hex-label');
+
+    s += `<g class="hex" transform="translate(${item.px},${item.py})" ${dataAttr}>${hexContent}<text class="${labelCls}" x="0" y="0">${escH(trunc)}</text></g>`;
+  });
+
+  svg.innerHTML = s;
+  applyVB();
+  svg.onclick = e => { const g = e.target.closest('g[data-w]'); if (g) hop(g.dataset.w); };
+}
+
+function escA(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function escH(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+function hexPts(r) {
+  const p = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    p.push(`${(Math.cos(a)*r).toFixed(1)},${(Math.sin(a)*r).toFixed(1)}`);
+  }
+  return p.join(' ');
+}
+
+function hexHalfPts(r, side) {
+  // Pointy-top hex vertices: v0=right-top, v1=right-bot, v2=bottom, v3=left-bot, v4=left-top, v5=top
+  const verts = [];
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    verts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  // v5=top(0,-R), v2=bottom(0,R) are the split line
+  if (side === 'left') {
+    // top, left-top, left-bot, bottom
+    return [verts[5], verts[4], verts[3], verts[2]].map(v => `${v[0].toFixed(1)},${v[1].toFixed(1)}`).join(' ');
+  } else {
+    // top, right-top, right-bot, bottom
+    return [verts[5], verts[0], verts[1], verts[2]].map(v => `${v[0].toFixed(1)},${v[1].toFixed(1)}`).join(' ');
+  }
+}
+
+function hexSpiral(n) {
+  const c = [[0,0]];
+  const dirs = [[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+  let ring = 1;
+  while (c.length < n) {
+    let q = ring, r = 0;
+    for (let d = 0; d < 6 && c.length < n; d++)
+      for (let s = 0; s < ring && c.length < n; s++) {
+        c.push([q, r]); q += dirs[d][0]; r += dirs[d][1];
+      }
+    ring++;
+  }
+  return c;
+}
+
+function applyVB() { document.getElementById('hex-svg').setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+
+// ── Pan/Zoom ──
+const hexSvg = document.getElementById('hex-svg');
+hexSvg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = e.deltaY > 0 ? 1.12 : 0.89;
+  const rect = hexSvg.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+  const px = vb.x + vb.w * mx, py = vb.y + vb.h * my;
+  vb.w *= f; vb.h *= f;
+  vb.x = px - vb.w * mx; vb.y = py - vb.h * my;
+  applyVB();
+}, { passive: false });
+
+hexSvg.addEventListener('mousedown', e => {
+  if (e.target.closest('g[data-w]')) return;
+  dragging = true; dragStart = { x: e.clientX, y: e.clientY, vx: vb.x, vy: vb.y };
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const rect = hexSvg.getBoundingClientRect();
+  const scale = vb.w / rect.width;
+  vb.x = dragStart.vx - (e.clientX - dragStart.x) * scale;
+  vb.y = dragStart.vy - (e.clientY - dragStart.y) * scale;
+  applyVB();
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+
+let lastTouches = null;
+hexSvg.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) { dragging = true; dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, vx: vb.x, vy: vb.y }; }
+  lastTouches = [...e.touches];
+}, { passive: true });
+hexSvg.addEventListener('touchmove', e => {
+  if (e.touches.length === 1 && dragging) {
+    const rect = hexSvg.getBoundingClientRect();
+    const sc = vb.w / rect.width;
+    vb.x = dragStart.vx - (e.touches[0].clientX - dragStart.x) * sc;
+    vb.y = dragStart.vy - (e.touches[0].clientY - dragStart.y) * sc;
+    applyVB();
+  } else if (e.touches.length === 2 && lastTouches && lastTouches.length === 2) {
+    const pd = Math.hypot(lastTouches[0].clientX - lastTouches[1].clientX, lastTouches[0].clientY - lastTouches[1].clientY);
+    const cd = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const f = pd / cd; const cx = vb.x + vb.w/2, cy = vb.y + vb.h/2;
+    vb.w *= f; vb.h *= f; vb.x = cx - vb.w/2; vb.y = cy - vb.h/2; applyVB();
+  }
+  lastTouches = [...e.touches];
+}, { passive: true });
+hexSvg.addEventListener('touchend', () => { dragging = false; lastTouches = null; });
+hexSvg.addEventListener('dblclick', e => {
+  if (e.target.closest('g[data-w]')) return;
+  if (currentWord && currentNodes.length) renderHex(currentWord, currentNodes);
+});
+
+// ══════════════════
+// COLUMNS
+// ══════════════════
+function renderCols(centerWord, nodes) {
+  const el = document.getElementById('col-view');
+  const cold = [], warm = [], tlds = [], customs = [];
+
+  nodes.forEach(n => {
+    if (n.isTld) tlds.push(n);
+    if (n.isCustom) customs.push(n);
+    if (!n.isTld && !n.isCustom) {
+      if (n.tldWarmth > 0.15) warm.push(n);
+      else cold.push(n);
+    }
+  });
+
+  // Indirect TLDs from warm words
+  const indirect = new Map();
+  warm.forEach(n => {
+    (n.nearbyTlds || []).forEach(t => {
+      if (!indirect.has(t.tld)) indirect.set(t.tld, { tld: t.tld, score: t.score, via: n.word });
+    });
+  });
+  const directSet = new Set(tlds.map(t => t.word.replace(/\s/g, '')));
+  indirect.forEach((v, k) => {
+    if (!directSet.has(k)) tlds.push({ word: k, isTld: true, tldWarmth: 1, similarity: v.score, via: v.via });
+  });
+
+  cold.sort((a,b) => b.similarity - a.similarity);
+  warm.sort((a,b) => b.tldWarmth - a.tldWarmth);
+
+  function item(n) {
+    const isTld = n.isTld, isCust = n.isCustom;
+    const bg = isTld ? COL_TLD_FILL : (isCust ? COL_CUSTOM_FILL : warmthColorTld(n.tldWarmth || 0));
+    const display = isTld ? '.' + n.word.replace(/\s/g, '') : n.word;
+    const meta = n.via ? `via ${n.via}` :
+      (n.nearbyTlds && n.nearbyTlds.length ? n.nearbyTlds.length + ' TLDs' : Math.round((n.similarity||0) * 100) + '%');
+    return `<div class="col-item" style="background:${bg}" data-w="${escA(n.word)}">${escH(display)}<span class="col-meta">${meta}</span></div>`;
+  }
+
+  const hasCustom = customSet.size > 0;
+  el.innerHTML = `
+    <div class="col"><div class="col-hdr">cold</div>${cold.map(item).join('') || '<div class="col-meta" style="padding:8px">none</div>'}</div>
+    <div class="col"><div class="col-hdr">warm</div>${warm.map(item).join('') || '<div class="col-meta" style="padding:8px">none</div>'}</div>
+    <div class="col"><div class="col-hdr" style="color:${COL_TLD}">TLDs</div>${tlds.map(item).join('') || '<div class="col-meta" style="padding:8px">keep exploring</div>'}</div>
+    ${hasCustom ? `<div class="col"><div class="col-hdr" style="color:${COL_CUSTOM}">custom set</div>${customs.map(item).join('') || '<div class="col-meta" style="padding:8px">keep exploring</div>'}</div>` : ''}
+  `;
+  el.onclick = e => { const it = e.target.closest('[data-w]'); if (it) hop(it.dataset.w); };
+}
+
+// ── Trail ──
+function renderTrail() {
+  const t = document.getElementById('trail');
+  if (!history.length && !currentWord) { t.innerHTML = ''; return; }
+  let h = history.map(w =>
+    `<span class="crumb" data-w="${escA(w)}">${escH(w)}</span><span class="crumb-sep">\u2192</span>`
+  ).join('');
+  h += `<span class="crumb crumb-now">${escH(currentWord)}</span>`;
+  t.innerHTML = h;
+}
+
+window.addEventListener('resize', () => {
+  if (currentWord && currentNodes.length) render(currentWord, currentNodes);
+});
+</script>
+</body>
+</html>
