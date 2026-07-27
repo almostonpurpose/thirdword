@@ -96,7 +96,7 @@ reference implementation (`app/engine.py`, `app/refine.py`):
 ## Quickstart
 
 ```bash
-git clone https://github.com/<you>/isthmus.git
+git clone https://github.com/almostonpurpose/isthmus.git
 cd isthmus/app
 python3 -m http.server
 # then open http://localhost:8000/meaning_map_v9.html

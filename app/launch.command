@@ -1,5 +1,5 @@
 #!/bin/bash
-# Meaning Map V8 — double-click this in Finder to launch.
+# Isthmus — double-click this in Finder to launch.
 # Serves the folder over HTTP (needed: the page fetches local .bin files)
 # and opens it in your default browser.
 
@@ -15,10 +15,10 @@ else
   sleep 1
 fi
 
-open "http://127.0.0.1:$PORT/meaning_map_v8.html"
+open "http://127.0.0.1:$PORT/meaning_map_v9.html"
 
 echo ""
-echo "  Meaning Map V8 → http://127.0.0.1:$PORT/meaning_map_v8.html"
+echo "  Isthmus → http://127.0.0.1:$PORT/meaning_map_v9.html"
 echo "  Close this window (or Ctrl-C) to stop the server."
 echo ""
 
