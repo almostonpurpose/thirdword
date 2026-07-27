@@ -1,0 +1,30 @@
+name: deploy to cloudflare pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      # No npm/build step: the tool is vanilla HTML with zero dependencies.
+      # Assembling _site keeps the .py sources and archive out of the public
+      # deploy, and gives the tool a bare-root URL instead of a versioned filename.
+      - name: assemble _site
+        run: |
+          mkdir -p _site
+          cp app/meaning_map_v9.html _site/index.html
+          cp app/space.bin _site/space.bin
+      - name: strip files over pages 25MiB limit
+        run: find _site -type f -size +24M -print -delete
+      - name: deploy to cloudflare pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # --branch must match the Pages project's production branch ("production"),
+          # otherwise deploys land as previews and the live URL keeps serving an old build.
+          command: pages deploy _site --project-name=isthmus --branch=production --commit-dirty=true
