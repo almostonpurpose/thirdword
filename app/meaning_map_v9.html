@@ -92,6 +92,31 @@ svg#graph.drag{cursor:grabbing}
   background:var(--linen);border-radius:20px;padding:4px 9px;cursor:pointer;color:var(--ink-2)}
 .preset:hover{border-color:var(--plum);color:var(--plum)}
 
+/* ── word lists (tlds, or your own file) ── */
+#wl-wrap{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+#wl-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#wl-head .lab{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3)}
+.wl-chip{font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid var(--line);
+  background:var(--linen);border-radius:20px;padding:4px 9px;cursor:pointer;color:var(--ink-2);
+  display:inline-flex;align-items:center;gap:6px}
+.wl-chip:hover{border-color:var(--amber);color:var(--ink)}
+.wl-chip.on{border-color:var(--amber);background:var(--amber);color:#2a2114}
+.wl-chip .n{opacity:.6;font-size:9px}
+.wl-chip .x{opacity:.5}
+.wl-chip .x:hover{opacity:1;color:var(--oxide)}
+#wl-readout{margin-top:9px}
+.wl-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px}
+.wl-row .nm{flex:1;font-family:'JetBrains Mono',monospace;cursor:pointer;color:var(--ink-2)}
+.wl-row .nm:hover{color:var(--amber)}
+.wl-row .gauge{flex:0 0 54px;height:4px;background:var(--linen-3);border-radius:3px;overflow:hidden}
+.wl-row .gauge i{display:block;height:100%;background:var(--amber);border-radius:3px}
+.wl-row .pct{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);width:22px;text-align:right}
+.wl-row .add{cursor:pointer;color:var(--ink-3);font-size:13px;width:12px;text-align:center}
+.wl-row .add:hover{color:var(--plum)}
+.wl-empty{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.node.wl-hit circle{stroke:var(--amber);stroke-width:2.4}
+
 /* ── bridges readout (signature) ── */
 #bridges{position:fixed;right:18px;top:18px;width:286px;z-index:20;
   background:rgba(248,246,241,.92);backdrop-filter:blur(14px);
@@ -379,6 +404,16 @@ svg#graph.drag{cursor:grabbing}
         <span class="proto-hint">your fields as one category · best examples first</span>
       </label>
     </div>
+  </div>
+
+  <div id="wl-wrap">
+    <div id="wl-head">
+      <span class="lab">word lists</span>
+      <span><button class="tiny-btn" id="wl-load">+ your own…</button></span>
+    </div>
+    <div class="presets" id="wl-chips"></div>
+    <input type="file" id="wl-file" accept=".txt,.csv,text/plain" style="display:none">
+    <div id="wl-readout"></div>
   </div>
 
   <div id="lens-wrap">
@@ -1605,6 +1640,154 @@ async function tryFetchBundled(){
   $('proto-readout').addEventListener('click',e=>{
     const nm=e.target.closest('.nm'); if(nm&&nm.dataset.w) explore(nm.dataset.w);
   });
+})();
+
+// ════════════════════════════════════════════════════════════
+//  WORD LISTS  (additive — namespaced wl-, wraps rather than edits)
+//  A list is a named set of candidate words. Whichever list is active
+//  is ranked live against the word you're standing on, so the question
+//  "which of these fits here?" is answered continuously as you walk.
+//  Ships with the real-word TLDs; any one-word-per-line file works.
+// ════════════════════════════════════════════════════════════
+(function(){
+  const TLDS='academy accountant accountants actor agency airforce apartments app army art associates attorney auction audio auto autos baby band bank bar bargains beauty beer best bet bid bike bingo bio black blog blue boats boo book boutique broker build builders business buy cab cafe call cam camera camp capital car cards care career careers cars case cash casino catering center charity chat cheap church city claims cleaning click clinic clothing cloud club coach codes coffee college community company compare computer condos construction consulting contact contractors cooking cool country coupons courses credit cricket cruise cruises dad dance data date dating day deal deals degree delivery democrat dental dentist design diamonds diet digital direct directory discount doctor dog domains download earth eat education email energy engineer engineering enterprises equipment estate events exchange expert exposed express fail faith family fan fans farm fashion fast finance financial fire fish fishing fit fitness flights florist flowers food football forum foundation free fun fund furniture futbol fyi gallery game games garden gay gift gifts gives glass global gold golf graphics gratis green gripe group guide guitars guru hair health healthcare help here hiphop hockey holdings holiday homes horse hospital host hosting hot house how ice industries ink institute insurance insure international investments jewelry jobs kitchen land lawyer lease legal life lighting limited limo link live loan loans lol love ltd luxury makeup management market marketing markets mba media meet meme memorial men menu mobile moe mom money monster mortgage motorcycles movie museum music navy network new news ninja now observer one online ooo organic page partners parts party pet pets phone photo photography photos pics pictures pink pizza place plumbing plus poker porn press prime productions promo properties property protection pub racing radio read realty recipes red rehab rent rentals repair report republican rest restaurant review reviews rich rip rocks rodeo room rugby run sale salon save school science search security select services sex sexy shoes shop shopping show singles site ski skin soccer social software solar solutions song soy space sport store stream studio study style supplies supply support surf surgery systems tattoo tax taxi team tech technology tennis theater theatre tickets tips tires today tools top tours town toys trade trading training travel tube university vacations ventures vet video villas vision vodka vote voting voyage watch weather website wedding wiki win wine winners work works world wow yoga you zone'.split(' ');
+
+  const SHOWN=8;
+  const $=id=>document.getElementById(id);
+
+  // One word per line, or comma/tab separated. Anything containing a space is
+  // prose, not a word — so a stray header line in the file is harmless.
+  // A leading dot is stripped, since ".art" and "art" are the same vocabulary entry.
+  function parseList(text){
+    return [...new Set((text||'').split(/[\n,;\t]+/)
+      .map(s=>s.trim().toLowerCase().replace(/^\.+/,''))
+      .filter(s=>s && !s.includes(' ') && !s.startsWith('#')))];
+  }
+
+  let lists=[{id:'tlds', label:'tlds', prefix:'.', words:TLDS, builtin:true}];
+  let activeId=null;
+  let hits=new Set();          // active-list words that exist in the loaded space
+
+  const active=()=>lists.find(l=>l.id===activeId)||null;
+  const inSpace=w=>typeof idx!=='undefined'&&idx.size&&idx.has(w);
+  const ready=()=>typeof V!=='undefined'&&V&&typeof current!=='undefined'&&current&&idx.has(current);
+
+  function resolve(){
+    hits=new Set();
+    const a=active(); if(!a) return;
+    for(const w of a.words) if(inSpace(w)) hits.add(w);
+  }
+
+  function repaint(){ if(typeof G!=='undefined'&&G&&G.nodes.length) draw(); }
+
+  function renderChips(){
+    $('wl-chips').innerHTML=lists.map(l=>{
+      const n=(typeof idx!=='undefined'&&idx.size)?l.words.filter(inSpace).length:l.words.length;
+      return `<span class="wl-chip ${l.id===activeId?'on':''}" data-l="${l.id}">${esc(l.label)}`+
+        `<span class="n">${n}</span>`+
+        (l.builtin?'':`<span class="x" data-del="${l.id}" title="remove this list">×</span>`)+
+        `</span>`;
+    }).join('');
+  }
+
+  function renderReadout(){
+    const box=$('wl-readout'), a=active();
+    if(!a){ box.innerHTML=''; return; }
+    if(!ready()){ box.innerHTML=`<div class="wl-empty">stand on a word — the closest ${esc(a.label)} show up here.</div>`; return; }
+    if(!hits.size){ box.innerHTML=`<div class="wl-empty">none of this list's words exist in the current space.</div>`; return; }
+    const ci=idx.get(current);
+    const ranked=[...hits].filter(w=>w!==current)
+      .map(w=>[w,dot(ci,idx.get(w))])
+      .sort((p,q)=>q[1]-p[1]).slice(0,SHOWN);
+    box.innerHTML=ranked.map(([w,s])=>{
+      const pct=Math.max(0,Math.round(s*100));
+      return `<div class="wl-row">
+        <span class="nm" data-w="${w}" title="step onto this word">${esc(a.prefix+w)}</span>
+        <span class="gauge"><i style="width:${pct}%"></i></span>
+        <span class="pct">${pct}</span>
+        <span class="add" data-add="${w}" title="make this an anchor field">+</span>
+      </div>`;
+    }).join('');
+  }
+
+  function render(){ renderChips(); renderReadout(); }
+
+  // ── persistence: custom lists live beside the space in IndexedDB ──
+  async function save(){
+    try{
+      const db=await idb();
+      db.transaction(STORE,'readwrite').objectStore(STORE)
+        .put(lists.filter(l=>!l.builtin).map(l=>({id:l.id,label:l.label,words:l.words})),'wordlists');
+    }catch(e){}
+  }
+  async function restore(){
+    try{
+      const db=await idb();
+      const saved=await new Promise(res=>{
+        const t=db.transaction(STORE).objectStore(STORE).get('wordlists');
+        t.onsuccess=()=>res(t.result||[]); t.onerror=()=>res([]);
+      });
+      for(const l of saved) if(!lists.some(x=>x.id===l.id)) lists.push({...l,prefix:'',builtin:false});
+    }catch(e){}
+    render();
+  }
+
+  function setActive(id){
+    activeId = activeId===id ? null : id;
+    resolve(); render(); repaint();
+  }
+
+  // ── wiring ──
+  $('wl-load').onclick=()=>$('wl-file').click();
+
+  $('wl-file').onchange=async e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    let text=''; try{ text=await f.text(); }catch(err){ setStatus('could not read that file'); return; }
+    e.target.value='';
+    const wl=parseList(text);
+    if(!wl.length){ setStatus('no usable words in that file'); return; }
+    const label=(f.name.replace(/\.[^.]+$/,'')||'list').slice(0,20);
+    const rec={id:'own:'+label, label, prefix:'', words:wl, builtin:false};
+    const at=lists.findIndex(l=>l.id===rec.id);
+    if(at>=0) lists[at]=rec; else lists.push(rec);
+    activeId=rec.id; resolve(); render(); repaint(); save();
+    setStatus(`${label} · ${wl.length} words, ${wl.filter(inSpace).length} in this space`);
+  };
+
+  $('wl-chips').addEventListener('click',e=>{
+    const del=e.target.closest('[data-del]');
+    if(del){
+      const id=del.dataset.del;
+      lists=lists.filter(l=>l.id!==id);
+      if(activeId===id) activeId=null;
+      resolve(); render(); repaint(); save(); return;
+    }
+    const chip=e.target.closest('.wl-chip'); if(chip) setActive(chip.dataset.l);
+  });
+
+  $('wl-readout').addEventListener('click',e=>{
+    const add=e.target.closest('[data-add]');
+    if(add){ addAnchor(add.dataset.add); return; }
+    const nm=e.target.closest('.nm'); if(nm&&nm.dataset.w) explore(nm.dataset.w);
+  });
+
+  // ── wrap, don't alter: keep the readout live and badge list words in the graph ──
+  const _explore=explore;
+  explore=function(){ _explore.apply(this,arguments); renderReadout(); };
+
+  const _draw=draw;
+  draw=function(){
+    _draw.apply(this,arguments);
+    if(!hits.size) return;
+    const g=$('nodes'); if(!g) return;
+    for(const el of g.querySelectorAll('.node')) if(hits.has(el.dataset.w)) el.classList.add('wl-hit');
+  };
+
+  // a new space means a different vocabulary — re-resolve which words survive it
+  const _boot=boot;
+  boot=async function(){ const r=await _boot.apply(this,arguments); resolve(); render(); repaint(); return r; };
+
+  render(); restore();
 })();
 </script>
 </body>
