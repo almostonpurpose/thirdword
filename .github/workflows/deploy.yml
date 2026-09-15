@@ -27,4 +27,4 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # --branch must match the Pages project's production branch ("production"),
           # otherwise deploys land as previews and the live URL keeps serving an old build.
-          command: pages deploy _site --project-name=isthmus --branch=production --commit-dirty=true
+          command: pages deploy _site --project-name=thirdword --branch=production --commit-dirty=true

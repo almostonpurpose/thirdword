@@ -1,4 +1,4 @@
-# Isthmus
+# thirdword
 
 ![Dependencies: zero](https://img.shields.io/badge/dependencies-zero-brightgreen)
 ![JavaScript: vanilla](https://img.shields.io/badge/javascript-vanilla-yellow)
@@ -7,7 +7,7 @@
 
 **A word can sit between two ideas without belonging to either. This finds it.**
 
-Stand on a word. Name a few meaning-fields you want to reach. Isthmus grows a small
+Stand on a word. Name a few meaning-fields you want to reach. thirdword grows a small
 neighbourhood cloud outward from your word *and* from each field at once, finds where the
 clouds genuinely overlap — not just where they both happen to touch a generic hub word — and
 draws the shortest honest chain between them. Every hop is checked against real vector
@@ -25,12 +25,11 @@ disused → mill → iron`, via an old mill, not a straight line.*
 
 ---
 
-## Why "Isthmus"
+## Why "thirdword"
 
-An isthmus is the narrow strip of land that joins two larger landmasses — not part of either,
-but the only way to walk from one to the other. That's exactly what the tool's bridge words
-are: not a hub that every neighbourhood happens to share, but the specific, narrow, genuine
-connective tissue between two fields of meaning.
+Two ideas, and a word that sits between them without belonging to either. Not the hub every
+neighbourhood happens to share, but the specific, narrow, genuine connective tissue between two
+fields of meaning. A third word.
 
 ## How it works
 
@@ -96,8 +95,8 @@ reference implementation (`app/engine.py`, `app/refine.py`):
 ## Quickstart
 
 ```bash
-git clone https://github.com/almostonpurpose/isthmus.git
-cd isthmus/app
+git clone https://github.com/almostonpurpose/thirdword.git
+cd thirdword/app
 python3 -m http.server
 # then open http://localhost:8000/meaning_map_v9.html
 ```
@@ -128,7 +127,7 @@ A few things this project was a genuine excuse to build properly:
 ## Project structure
 
 ```
-isthmus/
+thirdword/
 ├── app/                    the tool
 │   ├── meaning_map_v9.html    current version — full control panel
 │   ├── meaning_map_v8.html    prior version — documented in HANDOVER.md
