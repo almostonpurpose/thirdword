@@ -1512,7 +1512,7 @@ async function boot(buf, name, source){
   await loadOverlays();
   o.style.display='none';
   fields=[]; selected=null; pinnedPair=null; history=[];
-  renderPresets(); renderAxisPresets(); renderSpacePanel(); WL.resolve(); WL.render();
+  renderPresets(); renderAxisPresets(); renderSpacePanel(); await WL.restore(); WL.resolve(); WL.render();
   setStatus(`${NV.toLocaleString()} words · ${DIM} dimensions`);
   loadPreset(PRESETS[2]);
   history=[]; $('btn-undo').disabled=true;   // the starting set is not something to undo back out of
