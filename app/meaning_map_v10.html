@@ -132,6 +132,21 @@ svg#graph.drag{cursor:grabbing}
 #legend .swatches{display:flex;flex-wrap:wrap;gap:8px;font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--ink-2)}
 #legend .swatches i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 
+/* ── folded sections ── */
+.fold{margin-top:8px;border-top:1px solid var(--line)}
+.fold summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0 9px;cursor:pointer}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary .lab::before{content:'▸ ';color:var(--ink-3)}
+.fold[open] summary .lab::before{content:'▾ '}
+.fold summary .sum{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);text-align:right;max-width:62%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fold-body{padding:0 0 10px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:11.5px;color:var(--ink-2)}
+.row select{font-family:'JetBrains Mono',monospace;font-size:10.5px;border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--linen);color:var(--ink);max-width:60%}
+.micro{font-size:10.5px;color:var(--ink-3);line-height:1.45;margin:2px 0 8px}
+.try-row{margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);line-height:1.8}
+.try-row .preset{border:none;background:none;padding:0;border-radius:0;color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.try-row .preset:hover{color:var(--plum);text-decoration-color:var(--plum)}
+
 /* ── pairs matrix ── */
 #matrix{display:grid;gap:3px;font-family:'JetBrains Mono',monospace;font-size:10px}
 #matrix .mc{height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;
@@ -296,167 +311,151 @@ svg#graph.drag{cursor:grabbing}
       <span><button class="tiny-btn" id="btn-undo" title="restore the previous set (⌘Z)">undo</button><button class="tiny-btn" id="btn-clear">clear</button></span>
     </div>
     <div id="fields-list"></div>
-    <div class="presets" id="presets"></div>
-  </div>
-
-  <div class="sect" id="fs-wrap">
-    <div class="sect-head">
-      <span class="lab" id="fs-lab">settings · new words</span>
-      <button class="tiny-btn" id="fs-all" title="copy these settings to every word">apply to all</button>
-    </div>
-    <div id="fs-title"></div>
-    <div id="fs-sub">These apply to every word. Click a word above to tune just that one.</div>
-
-    <div class="lc">
-      <div class="lc-lab">neighbours
-        <span class="i" data-tip="How many nearest words this word pulls in. Higher = a fuller, busier neighbourhood.">i</span>
-        <span class="rng-val" id="v-cutoff">12</span></div>
-      <input type="range" id="r-cutoff" min="3" max="40" value="12">
-    </div>
-    <div class="lc">
-      <div class="lc-lab">min. closeness
-        <span class="i" data-tip="Hide neighbours whose closeness to this word is below this. Your words and the words on bridge paths always stay — <b>structure is never cut</b>, only the loose cloud.">i</span>
-        <span class="rng-val" id="v-minsim">0%</span></div>
-      <input type="range" id="r-minsim" min="0" max="85" value="0">
-    </div>
-    <div class="lc">
-      <div class="lc-lab">filters
-        <span class="i" data-tip="Hide neighbours by trait. Everything shows until you hide it.">i</span></div>
-      <div class="toggles">
-        <label class="chk"><input type="checkbox" id="f-hubs"> hide hubs</label>
-        <label class="chk"><input type="checkbox" id="f-ambig"> hide ambiguous</label>
-      </div>
-      <div class="two-rng" style="margin-top:9px">
-        <span class="rng-val">len</span>
-        <input type="range" id="f-lenmin" min="1" max="20" value="1">
-        <input type="range" id="f-lenmax" min="1" max="20" value="20">
-        <span class="rng-val" id="v-len">1–20</span>
-      </div>
-    </div>
+    <div class="try-row" id="presets"></div>
   </div>
 
   <div class="sect" id="pairs-wrap" style="display:none">
     <div class="sect-head"><span class="lab">between your words</span><span class="lab" id="pairs-note"></span></div>
     <div id="matrix"></div>
-    <div class="empty-note" style="margin-top:7px">closeness of each pair · hover to light the pair up · click to pin its bridge</div>
+    <div class="micro" style="margin-top:6px">closeness of each pair · hover to light it up · click to pin its bridge</div>
   </div>
 
-  <div class="sect" id="wl-wrap">
-    <div class="sect-head">
-      <span class="lab">word lists</span>
-      <span><button class="tiny-btn" id="wl-load">+ your own…</button></span>
+  <details class="fold" id="fs-wrap">
+    <summary><span class="lab" id="fs-lab">neighbourhood</span><span class="sum" id="fs-sum"></span></summary>
+    <div class="fold-body">
+      <div id="fs-title"></div>
+      <div id="fs-sub">These apply to every word. Click a word above to tune just that one.</div>
+      <div class="lc">
+        <div class="lc-lab">neighbours
+          <span class="i" data-tip="How many nearest words each word pulls in. Higher = a fuller, busier neighbourhood.">i</span>
+          <span class="rng-val" id="v-cutoff">12</span></div>
+        <input type="range" id="r-cutoff" min="3" max="40" value="12">
+      </div>
+      <div class="lc">
+        <div class="lc-lab">min. closeness
+          <span class="i" data-tip="Hide neighbours below this closeness. Your words and the words on bridge paths always stay — <b>structure is never cut</b>, only the loose cloud.">i</span>
+          <span class="rng-val" id="v-minsim">0%</span></div>
+        <input type="range" id="r-minsim" min="0" max="85" value="0">
+      </div>
+      <div class="lc">
+        <div class="toggles">
+          <label class="chk"><input type="checkbox" id="f-hubs"> hide hubs</label>
+          <label class="chk"><input type="checkbox" id="f-ambig"> hide ambiguous</label>
+        </div>
+        <div class="two-rng" style="margin-top:9px">
+          <span class="rng-val">length</span>
+          <input type="range" id="f-lenmin" min="1" max="20" value="1">
+          <input type="range" id="f-lenmax" min="1" max="20" value="20">
+          <span class="rng-val" id="v-len">1–20</span>
+        </div>
+      </div>
+      <button class="tiny-btn" id="fs-all" style="padding:0;display:none">apply these to every word</button>
     </div>
-    <div class="empty-note" style="margin-bottom:6px">pick a list: its words are ringed on the map and ranked below against your words. Click one to add it as a word of your own.</div>
-    <div class="presets" id="wl-chips"></div>
-    <input type="file" id="wl-file" accept=".txt,.csv,text/plain" style="display:none">
-    <div id="wl-readout"></div>
-  </div>
+  </details>
 
-  <div class="sect" id="lens-wrap">
-    <div class="sect-head" id="lens-head" style="cursor:pointer"><span class="lab">lens · colour, size, layout</span><span class="lab" id="lens-caret">▾</span></div>
-    <div id="lens-body">
-
-      <div class="lc">
-        <div class="lc-lab">colour by
-          <span class="i" data-tip="Categorical traits get distinct hues; continuous traits get a light→dark shade. Your words keep their own colour so they stay findable.">i</span></div>
-        <div class="seg" id="seg-color">
-          <button data-v="allegiance" class="on" data-tip="Which of your words each neighbour sits closest to — its <b>territory</b>.">territory</button>
-          <button data-v="distance" data-tip="Closeness to the nearest of your words. Darker = closer in meaning.">closeness</button>
-          <button data-v="rarity" data-tip="How rare the word is in the corpus. Darker = rarer &amp; more specific; pale = a common hub.">rarity</button>
-          <button data-v="polysemy" data-tip="How split the word's own neighbourhood is. Oxide-tinted = <b>ambiguous</b> — meaning may shift if a path runs through it.">ambiguity</button>
-          <button data-v="cluster" data-tip="Data-driven groups (k-means on the vectors) that <b>ignore your words</b> — the field's own internal seams.">cluster</button>
-          <button data-v="axis" data-tip="Where each word falls along the axis you set below.">axis</button>
-          <button data-v="pos" data-ov="1" data-tip="Part of speech, from WordNet. A word with several parts shows its first.">part of speech</button>
-          <button data-v="conc" data-ov="1" data-tip="How concrete a word is, from human ratings (Brysbaert et al.). Dark = a thing you can touch; pale = an idea.">concreteness</button>
-          <button data-v="val" data-ov="1" data-tip="How pleasant the word feels, from human ratings (Warriner et al.). Dark = pleasant.">valence</button>
-          <button data-v="aro" data-ov="1" data-tip="How exciting the word feels, from human ratings (Warriner et al.). Dark = exciting.">arousal</button>
-          <button data-v="aoa" data-ov="1" data-tip="Age at which people report learning the word (Kuperman et al.). Dark = learned late.">age learned</button>
-          <button data-v="syl" data-ov="1" data-tip="Syllables, from the CMU pronouncing dictionary. Dark = more.">syllables</button>
-        </div>
-        <div id="legend"></div>
-      </div>
-
-      <div class="lc">
-        <div class="lc-lab">axis
-          <span class="i" data-tip="Two words define a direction in the space. With colour set to <b>axis</b>, every word is shaded by where it falls between them. Type your own pair or pick a preset.">i</span></div>
+  <details class="fold" id="lens-wrap">
+    <summary id="lens-head"><span class="lab">lens</span><span class="sum" id="lens-sum"></span></summary>
+    <div class="fold-body" id="lens-body">
+      <label class="row"><span>colour by</span>
+        <select id="sel-color">
+          <option value="allegiance">territory</option>
+          <option value="distance">closeness</option>
+          <option value="rarity">rarity</option>
+          <option value="polysemy">ambiguity</option>
+          <option value="cluster">cluster</option>
+          <option value="axis">an axis</option>
+          <option value="pos" data-ov="1">part of speech</option>
+          <option value="conc" data-ov="1">concreteness</option>
+          <option value="val" data-ov="1">valence</option>
+          <option value="aro" data-ov="1">arousal</option>
+          <option value="aoa" data-ov="1">age learned</option>
+          <option value="syl" data-ov="1">syllables</option>
+        </select></label>
+      <div class="micro" id="color-note"></div>
+      <div id="legend"></div>
+      <div id="axis-wrap" style="display:none">
         <div class="axis-row"><input id="axis-a" placeholder="from"><span>→</span><input id="axis-b" placeholder="to"><button class="tiny-btn" id="axis-go">set</button></div>
-        <div class="presets" id="axis-presets"></div>
+        <div class="try-row" id="axis-presets"></div>
       </div>
+      <label class="row"><span>size by</span>
+        <select id="sel-size">
+          <option value="degree">how many of your words it sits near</option>
+          <option value="distance">closeness</option>
+          <option value="rarity">rarity</option>
+          <option value="length">length</option>
+          <option value="syl" data-ov="1">syllables</option>
+          <option value="uniform">uniform</option>
+        </select></label>
+      <label class="row"><span>layout</span>
+        <select id="sel-layout">
+          <option value="force">force</option>
+          <option value="pca">projection</option>
+          <option value="territory">territory</option>
+          <option value="centre">centre</option>
+        </select></label>
+      <div class="micro" id="layout-note"></div>
+    </div>
+  </details>
 
+  <details class="fold" id="ov-wrap">
+    <summary><span class="lab">overlays</span><span class="sum" id="ov-sum"></span></summary>
+    <div class="fold-body">
       <div class="lc">
-        <div class="lc-lab">size by
-          <span class="i" data-tip="What the dot's radius encodes.">i</span></div>
-        <div class="seg" id="seg-size">
-          <button data-v="degree" class="on" data-tip="Bigger = close to <b>more of your words at once</b> — a junction between neighbourhoods.">shared</button>
-          <button data-v="distance" data-tip="Bigger = closer to the nearest of your words.">closeness</button>
-          <button data-v="rarity" data-tip="Bigger = rarer &amp; more specific.">rarity</button>
-          <button data-v="length" data-tip="Bigger = a longer word.">length</button>
-          <button data-v="syl" data-ov="1" data-tip="Bigger = more syllables.">syllables</button>
-          <button data-v="uniform" data-tip="All dots the same size.">uniform</button>
-        </div>
-      </div>
-
-      <div class="lc">
-        <div class="lc-lab">layout
-          <span class="i" data-tip="How the words are arranged.">i</span></div>
-        <div class="seg" id="seg-layout">
-          <button data-v="force" class="on" data-tip="Your words are placed by their real closeness to each other; the neighbourhoods settle around them.">force</button>
-          <button data-v="pca" data-tip="An honest flat projection of the vectors themselves (first two principal components of the words in view). Distances on screen mean something.">projection</button>
-          <button data-v="territory" data-tip="Each of your words owns a wedge; every neighbour sits in whoever's territory it belongs to.">territory</button>
-          <button data-v="centre" data-tip="All your words as one category: its best example in the middle, everything else graded by typicality outward (Rosch's prototype).">centre</button>
-        </div>
-      </div>
-
-      <div class="lc">
-        <div class="lc-lab">part of speech
-          <span class="i" data-tip="Show only these parts of speech (WordNet). <b>unknown</b> keeps words WordNet has no entry for.">i</span></div>
+        <div class="lc-lab">show only
+          <span class="i" data-tip="Part of speech, from WordNet. <b>unknown</b> keeps words WordNet has no entry for.">i</span></div>
         <div class="toggles" id="pos-filter">
-          <label class="chk"><input type="checkbox" data-m="1" checked> noun</label>
-          <label class="chk"><input type="checkbox" data-m="2" checked> verb</label>
-          <label class="chk"><input type="checkbox" data-m="4" checked> adjective</label>
-          <label class="chk"><input type="checkbox" data-m="8" checked> adverb</label>
+          <label class="chk"><input type="checkbox" data-m="1" checked> nouns</label>
+          <label class="chk"><input type="checkbox" data-m="2" checked> verbs</label>
+          <label class="chk"><input type="checkbox" data-m="4" checked> adjectives</label>
+          <label class="chk"><input type="checkbox" data-m="8" checked> adverbs</label>
           <label class="chk"><input type="checkbox" data-m="0" checked> unknown</label>
         </div>
       </div>
-
+      <label class="row"><span>word families</span>
+        <select id="sel-family">
+          <option value="off">off</option>
+          <option value="link" data-ov="1">link them</option>
+          <option value="collapse" data-ov="1">collapse them</option>
+        </select></label>
+      <div class="micro">stone / stones, walk / walked. Link draws a dotted line; collapse hides an inflection when its base form is on the map.</div>
       <div class="lc">
-        <div class="lc-lab">word families
-          <span class="i" data-tip="stone / stones, walk / walked / walking. <b>link</b> draws a dotted line between them; <b>collapse</b> hides an inflection when its base form is already on the map.">i</span></div>
-        <div class="seg" id="seg-family">
-          <button data-v="off" class="on">off</button>
-          <button data-v="link" data-ov="1">link</button>
-          <button data-v="collapse" data-ov="1">collapse</button>
-        </div>
-      </div>
-
-      <div class="lc">
-        <div class="lc-lab">relations
-          <span class="i" data-tip="Structure the vectors are blind to. Word vectors put opposites next to each other (hot/cold): <b>antonyms</b> draws those pairs. <b>is-a</b> links a word to its broader term. <b>rhymes</b> links words that rhyme (CMU dictionary).">i</span></div>
+        <div class="lc-lab">draw
+          <span class="i" data-tip="Structure the vectors are blind to. Word vectors put opposites next to each other (hot/cold): <b>opposites</b> draws those pairs. <b>is-a</b> links a word to its broader term. <b>rhymes</b> links words that rhyme.">i</span></div>
         <div class="toggles">
-          <label class="chk"><input type="checkbox" id="e-anto" data-ov="1"> antonyms</label>
+          <label class="chk"><input type="checkbox" id="e-anto" data-ov="1"> opposites</label>
           <label class="chk"><input type="checkbox" id="e-hyper" data-ov="1"> is-a</label>
           <label class="chk"><input type="checkbox" id="e-rhyme" data-ov="1"> rhymes</label>
         </div>
       </div>
-
-      <div class="lc">
-        <div class="lc-lab">paths &amp; links
-          <span class="i" data-tip="The lines carry meaning too, not just the words.">i</span></div>
-        <div class="toggles">
-          <label class="chk"><input type="checkbox" id="e-paths" checked> bridges</label>
-          <label class="chk"><input type="checkbox" id="e-ambient" checked> links</label>
-          <label class="chk"><input type="checkbox" id="e-honesty"> honesty</label>
-        </div>
-        <div class="lc" style="margin:9px 0 0">
-          <div class="lc-lab" style="margin-bottom:4px">hide weak links
-            <span class="i" data-tip="A bridge step can drift <b>away</b> from its destination even while heading there. Turn on <b>honesty</b> above: sage = a step that genuinely gets closer, faded = a detour.">i</span>
-            <span class="rng-val" id="v-minedge">0%</span></div>
-          <input type="range" id="r-minedge" min="0" max="80" value="0">
-        </div>
-      </div>
-
     </div>
-  </div>
+  </details>
+
+  <details class="fold" id="lines-wrap">
+    <summary><span class="lab">lines</span><span class="sum" id="lines-sum"></span></summary>
+    <div class="fold-body">
+      <div class="toggles">
+        <label class="chk"><input type="checkbox" id="e-paths" checked> bridges</label>
+        <label class="chk"><input type="checkbox" id="e-ambient" checked> links</label>
+        <label class="chk"><input type="checkbox" id="e-honesty"> honesty</label>
+      </div>
+      <div class="micro">A bridge step can drift away from its destination while heading there. With honesty on, sage = a step that gets closer, faded = a detour.</div>
+      <div class="lc" style="margin:9px 0 0">
+        <div class="lc-lab" style="margin-bottom:4px">hide weak links<span class="rng-val" id="v-minedge">0%</span></div>
+        <input type="range" id="r-minedge" min="0" max="80" value="0">
+      </div>
+    </div>
+  </details>
+
+  <details class="fold" id="wl-wrap">
+    <summary><span class="lab">word lists</span><span class="sum" id="wl-sum"></span></summary>
+    <div class="fold-body">
+      <div class="micro">Pick a list: its words are ringed on the map and ranked against your words. Click one to add it.</div>
+      <div class="presets" id="wl-chips"></div>
+      <input type="file" id="wl-file" accept=".txt,.csv,text/plain" style="display:none">
+      <div id="wl-readout"></div>
+      <button class="tiny-btn" id="wl-load" style="padding:0;margin-top:8px">+ your own list…</button>
+    </div>
+  </details>
 
   <div id="settings-wrap" class="sect" style="display:none">
     <div class="lab" style="margin-bottom:8px">semantic space</div>
@@ -465,10 +464,10 @@ svg#graph.drag{cursor:grabbing}
       <button class="preset" id="btn-load-space">load a different space…</button>
       <button class="preset" id="btn-reset-space">forget &amp; reload bundled</button>
     </div>
-    <div style="font-size:10.5px;color:var(--ink-3);margin-top:8px;line-height:1.5">
+    <div class="micro" style="margin-top:8px">
       A space is one <code style="font-family:'JetBrains Mono',monospace">space.bin</code> file — its own vocabulary and dimensions. Swap it for a denser one, a larger one, or another language. Remembered in this browser until you change it.
     </div>
-    <div id="overlay-meta" style="font-size:10.5px;color:var(--ink-3);margin-top:10px;line-height:1.5"></div>
+    <div id="overlay-meta" class="micro" style="margin-top:10px"></div>
     <input id="space-filein" type="file" accept=".bin" style="display:none">
   </div>
 </div>
@@ -1146,7 +1145,7 @@ function renderFields(){
 
 function renderSettings(){
   const f=selected!=null?fields[selected]:null, st=f?f.set:newSet;
-  $('fs-lab').textContent=f?'settings · this word':'settings · all words';
+  $('fs-lab').textContent=f?'neighbourhood · '+f.word:'neighbourhood';
   $('fs-all').style.display=f&&fields.length>1?'inline':'none';
   if(f){
     const c=fieldColor(selected), i=idx.get(f.word);
@@ -1176,6 +1175,7 @@ function renderSettings(){
   $('r-minsim').value=Math.round(st.minSim*100); $('v-minsim').textContent=Math.round(st.minSim*100)+'%';
   $('f-hubs').checked=st.hideHubs; $('f-ambig').checked=st.hideAmbig;
   $('f-lenmin').value=st.lenMin; $('f-lenmax').value=st.lenMax; $('v-len').textContent=st.lenMin+'–'+st.lenMax;
+  renderSums();
 }
 function curSet(){ return selected!=null&&fields[selected]?fields[selected].set:newSet; }
 
@@ -1271,11 +1271,11 @@ function loadPreset(p){
   pushHistory(); fields=p.a.filter(w=>idx.has(w)).map((w,ix)=>({word:w,k:ix,set:{...newSet}}));
   selected=null; pinnedPair=null; rebuild();
 }
-function renderPresets(){ $('presets').innerHTML=PRESETS.map((p,i)=>`<span class="preset" data-p="${i}">${p.label}</span>`).join(''); }
+function renderPresets(){ $('presets').innerHTML='try: '+PRESETS.map((p,i)=>`<span class="preset" data-p="${i}">${p.label}</span>`).join(' · '); }
 
 const AXES=[['good','bad'],['old','new'],['stone','idea'],['man','woman'],['small','huge'],['cold','hot'],['slow','fast'],['child','adult']];
 function renderAxisPresets(){
-  $('axis-presets').innerHTML=AXES.filter(([a,b])=>idx.has(a)&&idx.has(b)).map(([a,b])=>`<span class="preset" data-ax="${a}|${b}">${a} → ${b}</span>`).join('');
+  $('axis-presets').innerHTML='try: '+AXES.filter(([a,b])=>idx.has(a)&&idx.has(b)).map(([a,b])=>`<span class="preset" data-ax="${a}|${b}">${a} → ${b}</span>`).join(' · ');
 }
 function setAxis(a,b){
   a=(a||'').toLowerCase().trim(); b=(b||'').toLowerCase().trim();
@@ -1286,11 +1286,43 @@ function setAxis(a,b){
   $('axis-a').value=a; $('axis-b').value=b;
   setColor('axis'); setStatus(`axis ${a} → ${b}`);
 }
+const COLOR_NOTES={
+  allegiance:'which of your words each neighbour sits closest to.',
+  distance:'closeness to the nearest of your words; darker = closer.',
+  rarity:'how rare the word is in the corpus; darker = rarer, pale = a common hub.',
+  polysemy:'how split the word\'s own neighbourhood is; oxide = ambiguous, meaning may shift through it.',
+  cluster:'data-driven groups (k-means on the vectors) that ignore your words.',
+  axis:'where each word falls between the two words below.',
+  pos:'part of speech, from WordNet; a word with several shows its first.',
+  conc:'how concrete the word is, from human ratings (Brysbaert et al.).',
+  val:'how pleasant the word feels, from human ratings (Warriner et al.).',
+  aro:'how exciting the word feels, from human ratings (Warriner et al.).',
+  aoa:'the age people report learning the word (Kuperman et al.).',
+  syl:'syllables, from the CMU pronouncing dictionary.',
+};
+const LAYOUT_NOTES={
+  force:'your words placed by their real closeness to each other; neighbourhoods settle around them.',
+  pca:'an honest flat projection of the vectors themselves; distances on screen mean something.',
+  territory:'each of your words owns a wedge; neighbours sit in whoever\'s territory they belong to.',
+  centre:'all your words as one category: its best example in the middle, the rest graded by typicality.',
+};
 function setColor(v){
-  LENS.colorBy=v;
-  document.querySelectorAll('#seg-color button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));
+  LENS.colorBy=v; $('sel-color').value=v;
+  $('color-note').textContent=COLOR_NOTES[v]||'';
+  $('axis-wrap').style.display=v==='axis'?'block':'none';
   if(v==='cluster'&&G.nodes.length) computeClusters(G.nodes,(G.poles||[]).length+1);
-  renderLegend(); draw();
+  renderLegend(); renderSums(); draw();
+}
+// one-line summaries on the folded sections, so the state reads without opening them
+function renderSums(){
+  const st=curSet(), f=selected!=null?fields[selected]:null;
+  $('fs-sum').textContent=`${f?f.word+' · ':''}${st.cutoff} neighbours${st.minSim?' · ≥'+Math.round(st.minSim*100)+'%':''}${st.hideHubs?' · no hubs':''}${st.hideAmbig?' · no ambiguous':''}`;
+  $('lens-sum').textContent=`${$('sel-color').selectedOptions[0]?.textContent} · ${LENS.layout==='force'?'force':$('sel-layout').selectedOptions[0]?.textContent}`;
+  const ov=[]; if(LENS.posMask!==15||!LENS.posUnknown) ov.push('filtered'); if(LENS.family!=='off') ov.push('families'); if(LENS.showAnto)ov.push('opposites'); if(LENS.showHyper)ov.push('is-a'); if(LENS.showRhyme)ov.push('rhymes');
+  $('ov-sum').textContent=OV?(ov.join(' · ')||'none on'):'no data';
+  const ln=[]; if(LENS.showPaths)ln.push('bridges'); if(LENS.showAmbient)ln.push('links'); if(LENS.edgeHonesty)ln.push('honesty'); if(LENS.minEdge)ln.push('≥'+Math.round(LENS.minEdge*100)+'%');
+  $('lines-sum').textContent=ln.join(' · ')||'none';
+  $('wl-sum').textContent=wlActiveLabel();
 }
 
 // ── hover readout ──
@@ -1382,27 +1414,25 @@ function lenUpd(){let lo=+$('f-lenmin').value,hi=+$('f-lenmax').value; if(lo>hi)
 $('f-lenmin').oninput=lenUpd; $('f-lenmax').oninput=lenUpd;
 
 // lens wiring (global)
-function segWire(id,fn){ const btns=[...document.querySelectorAll('#'+id+' button')];
-  btns.forEach(b=>b.onclick=()=>{ if(b.disabled)return; btns.forEach(x=>x.classList.remove('on')); b.classList.add('on'); fn(b.dataset.v); }); }
-segWire('seg-color',v=>setColor(v));
-segWire('seg-size',v=>{LENS.sizeBy=v; draw();});
-segWire('seg-layout',v=>{const was=LENS.layout; LENS.layout=v; if(!V)return; if(v==='centre'||was==='centre') rebuild(); else relayout();});
-segWire('seg-family',v=>{LENS.family=v; draw();});
-$('e-anto').onchange=e=>{LENS.showAnto=e.target.checked;draw();};
-$('e-hyper').onchange=e=>{LENS.showHyper=e.target.checked;draw();};
-$('e-rhyme').onchange=e=>{LENS.showRhyme=e.target.checked;draw();};
-$('e-paths').onchange=e=>{LENS.showPaths=e.target.checked;draw();};
-$('e-ambient').onchange=e=>{LENS.showAmbient=e.target.checked;draw();};
-$('e-honesty').onchange=e=>{LENS.edgeHonesty=e.target.checked;draw();};
-$('r-minedge').oninput=e=>{LENS.minEdge=+e.target.value/100;$('v-minedge').textContent=e.target.value+'%';draw();};
+$('sel-color').onchange=e=>setColor(e.target.value);
+$('sel-size').onchange=e=>{LENS.sizeBy=e.target.value; renderSums(); draw();};
+$('sel-layout').onchange=e=>{const was=LENS.layout, v=e.target.value; LENS.layout=v; $('layout-note').textContent=LAYOUT_NOTES[v]||''; renderSums(); if(!V)return; if(v==='centre'||was==='centre') rebuild(); else relayout();};
+$('sel-family').onchange=e=>{LENS.family=e.target.value; renderSums(); draw();};
+$('color-note').textContent=COLOR_NOTES.allegiance; $('layout-note').textContent=LAYOUT_NOTES.force;
+$('e-anto').onchange=e=>{LENS.showAnto=e.target.checked;renderSums();draw();};
+$('e-hyper').onchange=e=>{LENS.showHyper=e.target.checked;renderSums();draw();};
+$('e-rhyme').onchange=e=>{LENS.showRhyme=e.target.checked;renderSums();draw();};
+$('e-paths').onchange=e=>{LENS.showPaths=e.target.checked;renderSums();draw();};
+$('e-ambient').onchange=e=>{LENS.showAmbient=e.target.checked;renderSums();draw();};
+$('e-honesty').onchange=e=>{LENS.edgeHonesty=e.target.checked;renderSums();draw();};
+$('r-minedge').oninput=e=>{LENS.minEdge=+e.target.value/100;$('v-minedge').textContent=e.target.value+'%';renderSums();draw();};
 $('pos-filter').addEventListener('change',()=>{ let m=0, unk=true;
   for(const c of document.querySelectorAll('#pos-filter input')){ const b=+c.dataset.m; if(b===0)unk=c.checked; else if(c.checked)m|=b; }
-  LENS.posMask=m; LENS.posUnknown=unk; if(LENS.layout==='pca')relayout(); else draw(); renderFields(); });
+  LENS.posMask=m; LENS.posUnknown=unk; renderSums(); if(LENS.layout==='pca')relayout(); else draw(); renderFields(); });
 $('axis-go').onclick=()=>setAxis($('axis-a').value,$('axis-b').value);
 for(const id of ['axis-a','axis-b']) $(id).addEventListener('keydown',e=>{if(e.key==='Enter')setAxis($('axis-a').value,$('axis-b').value);});
-$('lens-head').onclick=()=>{const b=$('lens-body'),open=b.style.display!=='none'; b.style.display=open?'none':'block'; $('lens-caret').textContent=open?'▸':'▾';};
 function setOverlayControls(on){
-  for(const el of document.querySelectorAll('[data-ov]')){ el.disabled=!on; el.title=on?'':'needs overlays.json beside the app'; if(el.tagName==='INPUT')el.closest('label').style.opacity=on?'1':'.4'; }
+  for(const el of document.querySelectorAll('[data-ov]')){ el.disabled=!on; if(el.tagName==='INPUT'){el.closest('label').style.opacity=on?'1':'.4';el.title=on?'':'needs overlays.json beside the app';} }
 }
 
 // hover explainers
@@ -1503,10 +1533,11 @@ const WL=(function(){
   $('wl-chips').addEventListener('click',e=>{
     const del=e.target.closest('[data-del]');
     if(del){ const id=del.dataset.del; lists=lists.filter(l=>l.id!==id); if(activeId===id)activeId=null; resolve(); render(); draw(); save(); return; }
-    const chip=e.target.closest('.wl-chip'); if(chip){ activeId=activeId===chip.dataset.l?null:chip.dataset.l; resolve(); render(); draw(); }
+    const chip=e.target.closest('.wl-chip'); if(chip){ activeId=activeId===chip.dataset.l?null:chip.dataset.l; resolve(); render(); draw(); renderSums(); }
   });
-  return {render, resolve, restore};
+  return {render, resolve, restore, activeLabel:()=>{const a=active();return a?a.label+' · '+wlHits.size:'none';}};
 })();
+function wlActiveLabel(){ return WL.activeLabel(); }
 function renderWordLists(){ WL.renderReadout?WL.renderReadout():WL.render(); }
 
 // ════════════════════════════════════════════════════════════
@@ -1559,9 +1590,9 @@ async function loadOverlays(){
   if(!o){ try{ const r=await fetch('./overlays.json'); if(r.ok){ o=await r.json(); cachePut(o,'overlays.json','overlays'); } }catch(e){} }
   if(o){ if(acceptOverlays(o)){ OV=o; buildRelIndex(); } else OV=false; }
   setOverlayControls(!!OV);
-  if(!OV){ if(LENS.family!=='off'){LENS.family='off';document.querySelectorAll('#seg-family button').forEach(b=>b.classList.toggle('on',b.dataset.v==='off'));}
+  if(!OV){ if(LENS.family!=='off'){LENS.family='off';$('sel-family').value='off';}
     if(['pos','conc','val','aro','aoa','syl'].includes(LENS.colorBy)) setColor('allegiance');
-    if(LENS.sizeBy==='syl'){LENS.sizeBy='degree';document.querySelectorAll('#seg-size button').forEach(b=>b.classList.toggle('on',b.dataset.v==='degree'));}
+    if(LENS.sizeBy==='syl'){LENS.sizeBy='degree';$('sel-size').value='degree';}
     LENS.showAnto=LENS.showHyper=LENS.showRhyme=false; for(const id of ['e-anto','e-hyper','e-rhyme'])$(id).checked=false; }
 }
 
@@ -1624,8 +1655,8 @@ addEventListener('resize',()=>{ if(G.nodes.length) relayout(); });
     { sel:'#bridges', side:'left', optional:true, title:'the bridge',
       body:`For each pair, the shortest chain of words from one neighbourhood to the other. The word in the middle sits in both at once. Below it: the neighbours the two words share, and the word nearest the centre of all your words. Click any word to add it.`,
       altBody:`With two or more words, a panel on the right shows the chain of words from each to each, the neighbours they share, and the word nearest the centre of the whole set.` },
-    { sel:'#lens-head', side:'right', title:'the lens',
-      body:`Colour and size the words by what they are: part of speech, how concrete or pleasant a word is, how rare, when people learn it. Draw opposites, is-a links and rhymes. Change the layout. Every control has an <code>i</code> that explains it.` },
+    { sel:'#lens-wrap', side:'right', title:'the folded sections',
+      body:`Everything else folds away down here. <b>neighbourhood</b> is how big and how tight each cloud is; <b>lens</b> is colour, size and layout; <b>overlays</b> adds part of speech, word families, opposites, is-a and rhymes; <b>lines</b> is what gets drawn; <b>word lists</b> ranks a set of candidates against your words. Each fold shows its current state without opening it.` },
     { sel:'#hint', side:'up', title:'moving around',
       body:`Drag the background to pan, scroll to zoom, hover a word for its numbers, and click any word on the map to add it to your set.` },
     { sel:'#guide-btn', side:'up', title:`that's the tour`,
