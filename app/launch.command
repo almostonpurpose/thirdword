@@ -15,10 +15,10 @@ else
   sleep 1
 fi
 
-open "http://127.0.0.1:$PORT/meaning_map_v9.html"
+open "http://127.0.0.1:$PORT/meaning_map_v10.html"
 
 echo ""
-echo "  thirdword → http://127.0.0.1:$PORT/meaning_map_v9.html"
+echo "  thirdword → http://127.0.0.1:$PORT/meaning_map_v10.html"
 echo "  Close this window (or Ctrl-C) to stop the server."
 echo ""
 

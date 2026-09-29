@@ -169,3 +169,78 @@ Overlap is found within two hops in every case, with tens of shared words to cho
 GloVe 6B 50d, pulled as a gzipped text file from a GitHub raw mirror, subset to the 40k commonest
 words, normalised, int8-quantised, packed into `space.bin`. Source vectors are Common Crawl /
 Wikipedia GloVe (Pennington, Socher, Manning). The tool ships no model, only these static vectors.
+
+---
+
+# v10 — every word is a field (2026-09-29)
+
+`meaning_map_v10.html` drops the seed/anchor asymmetry. There is no word you "stand on":
+every word you type is a field on equal footing, colour-coded, and the tool is a way of
+looking at the neighbourhoods around several words at once and where they meet. The engine
+block (`dot`, `nn`, `expand`, `bridges`, `walk`, `senseSplit`) is copied from v9 verbatim;
+everything above it — state, layout, render, panels, tour — is rewritten.
+
+## What changed, mechanically
+
+- **Fields.** `fields[]` holds `{word, k, set}`: the word, its palette slot (freed on removal,
+  so colours stay stable), and its own settings `{cutoff, minSim, hideHubs, hideAmbig,
+  lenMin, lenMax}`. Click a row in "your words" to select it; the settings panel then edits
+  that word only. With nothing selected it edits `newSet`, the defaults a new word inherits
+  (a new word copies the *selected* word's settings if one is selected). "apply to all"
+  copies the current settings to every word. Six words at most (the palette).
+- **Pairs.** Bridges and paths are computed for every pair of fields (lower index → higher);
+  the walk's honesty flag is toward the destination end. Shared neighbours per pair are the
+  intersection of the two words' own neighbour lists at their current cutoffs. The N×N grid
+  in the dock shows raw cosine per pair; hover lights a pair up on the map (everything else
+  dims), click pins it, which also filters the right-hand panel to that pair.
+- **Visibility.** Poles, bridge words and path words are never cut. A neighbour that sits in
+  several fields shows if *any* of those fields' settings keep it. Part-of-speech filter and
+  family collapse apply on top, globally.
+- **Layout.** Poles are placed by classical MDS on their pairwise cosines (`polePositions`),
+  so where your words sit relative to each other on screen is real. Neighbours settle by the
+  same force loop as v9, seeded near the word they belong to. Layouts: `force`, `pca` (first
+  two principal components of the visible words' vectors, `pcaPositions`), `territory`
+  (wedges by allegiance around the MDS angle), `centre` (the old prototype lens: top-60
+  words by closeness to the normalised mean of the poles, on rings by typicality).
+- **Multi-membership.** A neighbour in more than one field gets a segmented ring in each
+  field's colour; "size by shared" (default) scales by how many fields it belongs to.
+- **Centre.** The closest real word to the mean of the poles is always shown at the bottom
+  of the right-hand panel (what the prototype lens used to show as a mode).
+- **Clicking a word on the map adds it as a field.** ⌘Z / "undo" restores the previous set
+  (a 40-deep history of the fields array). The breadcrumb trail is gone.
+- **Word lists** rank against the selected word, or against the centre of all your words
+  when none is selected.
+
+## Overlays (`overlays.json`)
+
+Built by `build_overlays.py <data_dir>` from freely downloadable sources; the data dir is a
+scratch folder and is not committed. The file is indexed by vocabulary position and carries
+a `check` list of (index, word) pairs; the loader refuses it (and disables the overlay
+controls, with a note in the space panel) unless `vocab` matches and every check passes.
+Cached in IndexedDB under the key `overlays`, next to the space.
+
+| key | source | what |
+|---|---|---|
+| `pos`, `lemma`, `hyper`, `anto`, `deriv` | WordNet 3.1 | part-of-speech bitmask; inflection → base form (morphy rules + exception lists); direct hypernyms (climbs past multiword synsets); antonym and derivation pairs |
+| `syl`, `rhyme`, `rhymeKeys` | CMU pronouncing dictionary | syllable count; rhyme key = phones from the last stressed vowel |
+| `conc` | Brysbaert, Warriner & Kuperman 2014 | concreteness 1–5 → 1–255 |
+| `val`, `aro` | Warriner, Kuperman & Brysbaert 2013 | valence and arousal 1–9 → 1–255 |
+| `aoa` | Kuperman, Stadthagen-Gonzalez & Brysbaert 2012 | age of acquisition, tenths of a year |
+
+In the lens: colour by part of speech / concreteness / valence / arousal / age learned /
+syllables (each with a legend); size by syllables; part-of-speech filter; word families
+(link or collapse inflections and derivations); relation edges for antonyms, is-a and
+rhymes among the words in view. The **axis** colour mode needs no data: two words define a
+direction (`V[b]−V[a]`, normalised) and every visible word is shaded by its projection,
+normalised over the words in view. Presets are offered only if both ends are in vocabulary.
+
+Coverage on the 40k GloVe vocabulary: POS 28k, pronunciations 33.5k, concreteness 15.9k,
+valence 10.6k, age of acquisition 13k, 936 antonym pairs, 3.4k derivation pairs. Words with
+no rating are drawn in the neutral line colour, never coloured as if rated.
+
+## Deploy
+
+`deploy.yml` assembles `_site/` from `meaning_map_v10.html` (as `index.html`), `space.bin`
+and `overlays.json`. The tool is also vendored into the almostonpurpose site by that repo's
+`scripts/exhibits/vendor.mjs`, which reads the files from this folder and rebuilds the page
+on the site's frame; pushing this repo does not update the site copy.

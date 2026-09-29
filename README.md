@@ -7,11 +7,13 @@
 
 **A word can sit between two ideas without belonging to either. This finds it.**
 
-Stand on a word. Name a few meaning-fields you want to reach. thirdword grows a small
-neighbourhood cloud outward from your word *and* from each field at once, finds where the
-clouds genuinely overlap — not just where they both happen to touch a generic hub word — and
-draws the shortest honest chain between them. Every hop is checked against real vector
-distance, so it can't claim progress that isn't there.
+Type a word and it pulls in its neighbours — the words that sit closest to it in a vector
+space of meaning — in its own colour. Type a few more and thirdword shows where the
+neighbourhoods genuinely overlap (not just where they both touch a generic hub word) and draws
+the shortest honest chain of words from each to each. Every hop is checked against real vector
+distance, so it can't claim progress that isn't there. Linguistic overlays (part of speech,
+concreteness, valence, age of acquisition, antonyms, is-a, rhymes, word families, any axis you
+name) colour, size, filter and link what's on screen.
 
 It started as a tool for naming a website. What survived is the part that turned out to be
 interesting: triangulating between several meanings simultaneously, in a dense vector space
@@ -19,9 +21,10 @@ that has no natural clusters to lean on.
 
 ![Screenshot: standing on "bridge", triangulating between stone / glass / iron / timber](docs/screenshot.png)
 
-*Standing on **bridge**, triangulating against the fields **stone**, **glass**, **iron**,
-**timber** — note the bridge path the tool actually found to `iron`: `bridge → constructed →
-disused → mill → iron`, via an old mill, not a straight line.*
+*Version 9, standing on **bridge** with the fields **stone**, **glass**, **iron**, **timber** —
+note the path the tool actually found to `iron`: `bridge → constructed → disused → mill →
+iron`, via an old mill, not a straight line. Version 10 drops the idea of a word you stand on:
+every word is a field, and the bridges run between every pair.*
 
 ---
 
@@ -80,11 +83,18 @@ reference implementation (`app/engine.py`, `app/refine.py`):
   between several fields at once.
 - **Live proximity gauges** — real cosine distance to every anchor, updating as you move.
 - **Polysemy detection** — flags bridge words whose own neighbourhood doesn't agree with itself.
-- **A control panel, not a fixed view** (`meaning_map_v9.html`) — every slice of the graph is a
-  `dimension × verb`: **filter** (hide), **group/layout** (partition), **encode** (colour/size).
-  Words-per-field cutoff, minimum closeness, colour-by [allegiance / distance / rarity /
-  polysemy / cluster], size-by, three layout modes, hub/ambiguity filters, edge styles — all
-  free, all computed straight from the vectors, no external data needed.
+- **Every word is a field** (`meaning_map_v10.html`) — up to six words, each with its own
+  neighbourhood, colour and settings (neighbours pulled in, minimum closeness, hub/ambiguity
+  filters, length). Bridges and shared neighbours for every pair; an N×N closeness grid; the
+  word nearest the centre of the whole set; poles placed by real pairwise distance.
+- **A control panel, not a fixed view** — every slice of the graph is a `dimension × verb`:
+  **filter** (hide), **group/layout** (partition), **encode** (colour/size). Colour by
+  territory / closeness / rarity / ambiguity / cluster / any two-word axis; four layouts
+  (force, principal-component projection, territory wedges, typicality rings).
+- **Linguistic overlays** (`overlays.json`, built by `build_overlays.py`) — part of speech,
+  antonyms, is-a and word families from WordNet; syllables and rhymes from the CMU dictionary;
+  concreteness, valence, arousal and age-of-acquisition from published human ratings. Each is
+  a colour, size, filter or edge mode with a legend, and shows up in the hover readout.
 - **Offline-first** — the vector space loads once and is cached in IndexedDB; every session
   after that works with no network at all.
 - **Swappable vocabulary** — the vector space is one self-describing binary file. Drop in a
@@ -98,7 +108,7 @@ reference implementation (`app/engine.py`, `app/refine.py`):
 git clone https://github.com/almostonpurpose/thirdword.git
 cd thirdword/app
 python3 -m http.server
-# then open http://localhost:8000/meaning_map_v9.html
+# then open http://localhost:8000/meaning_map_v10.html
 ```
 
 On macOS, double-clicking `app/launch.command` does the same thing and opens the browser for
@@ -115,8 +125,9 @@ A few things this project was a genuine excuse to build properly:
   vectors. 40,000 words × 50 dimensions in ~2.3 MB. Full format spec and the packer in
   [`app/HANDOVER.md`](app/HANDOVER.md).
 - **A hand-rolled force-directed graph**, no d3 / three.js / any rendering library. Naive O(n²)
-  repulsion, current word pinned to centre, anchors pinned to a ring, skeleton edges pulling
-  harder so the chain visibly lays out between endpoints.
+  repulsion, your words pinned where classical MDS on their pairwise cosines puts them,
+  skeleton edges pulling harder so each chain visibly lays out between its endpoints. A
+  principal-component projection and a tiny k-means, also by hand.
 - **Dual-implementation validation.** The bridge-scoring and pathfinding logic exists twice —
   once in the shipped JS engine, once in a Python reference implementation — and was
   cross-checked to agree on real data before being trusted.
@@ -129,8 +140,11 @@ A few things this project was a genuine excuse to build properly:
 ```
 thirdword/
 ├── app/                    the tool
-│   ├── meaning_map_v9.html    current version — full control panel
-│   ├── meaning_map_v8.html    prior version — documented in HANDOVER.md
+│   ├── meaning_map_v10.html   current version — every word a field, overlays
+│   ├── meaning_map_v9.html    prior version — seed + anchor fields, full control panel
+│   ├── meaning_map_v8.html    earlier version — documented in HANDOVER.md
+│   ├── overlays.json           linguistic annotations aligned to the vocabulary (see HANDOVER)
+│   ├── build_overlays.py       builds overlays.json from WordNet, CMU dict and rating norms
 │   ├── field_inspector.html   companion view: one field's neighbourhood, close up
 │   ├── space.bin               the semantic space (GloVe 6B 50d, 40k words, int8-quantised)
 │   ├── words.txt, meta.json    plain-text vocabulary + space metadata (used by the Python reference)
@@ -165,6 +179,12 @@ thirdword/
 Built on GloVe 6B 50d word vectors (Pennington, Socher, Manning — Stanford NLP). Source vectors
 are Common Crawl / Wikipedia GloVe; the tool ships no model, only the static, quantised vectors
 in `space.bin`.
+
+Overlays are derived from WordNet 3.1 (Princeton University), the CMU Pronouncing Dictionary,
+and three sets of published human ratings: concreteness (Brysbaert, Warriner & Kuperman, 2014,
+*Behavior Research Methods*), valence and arousal (Warriner, Kuperman & Brysbaert, 2013, *BRM*),
+and age of acquisition (Kuperman, Stadthagen-Gonzalez & Brysbaert, 2012, *BRM*). Only the
+subset matching the vocabulary ships, rescaled to bytes, in `overlays.json`.
 
 ## License
 
