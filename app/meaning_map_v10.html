@@ -305,7 +305,7 @@ svg#graph.drag{cursor:grabbing}
       <button class="tiny-btn" id="fs-all" title="copy these settings to every word">apply to all</button>
     </div>
     <div id="fs-title"></div>
-    <div id="fs-sub">Click a word above to tune its own neighbourhood. With none selected, these are the settings a new word starts with.</div>
+    <div id="fs-sub">These apply to every word. Click a word above to tune just that one.</div>
 
     <div class="lc">
       <div class="lc-lab">neighbours
@@ -725,6 +725,9 @@ function rebuild(){
   if(!V)return;
   buildGraph();
   renderFields(); renderSettings(); renderMatrix(); renderBridges(); renderWordLists(); renderLegend();
+  updateStatus();
+}
+function updateStatus(){
   const nvis=G.nodes.filter(nodeVisible).length;
   const vf=validFields().length;
   setStatus(fields.length? `${nvis} words in view · ${vf} of yours · ${G.pairs.length} pair${G.pairs.length===1?'':'s'}` : 'type a word to begin');
@@ -1142,8 +1145,8 @@ function renderFields(){
 
 function renderSettings(){
   const f=selected!=null?fields[selected]:null, st=f?f.set:newSet;
-  $('fs-lab').textContent=f?'settings · this word':'settings · new words';
-  $('fs-all').style.display=fields.length>1||(!f&&fields.length)?'inline':'none';
+  $('fs-lab').textContent=f?'settings · this word':'settings · all words';
+  $('fs-all').style.display=f&&fields.length>1?'inline':'none';
   if(f){
     const c=fieldColor(selected), i=idx.get(f.word);
     let rel='';
@@ -1166,7 +1169,7 @@ function renderSettings(){
     $('fs-sub').innerHTML=`These settings shape <b>${esc(f.word)}</b>'s neighbourhood only. Click the word again to go back to the defaults for new words.${rel}`;
   } else {
     $('fs-title').innerHTML='';
-    $('fs-sub').innerHTML='Click a word above to tune its own neighbourhood. With none selected, these are the settings a new word starts with.';
+    $('fs-sub').innerHTML='These apply to every word. Click a word above to tune just that one.';
   }
   $('r-cutoff').value=st.cutoff; $('v-cutoff').textContent=st.cutoff;
   $('r-minsim').value=Math.round(st.minSim*100); $('v-minsim').textContent=Math.round(st.minSim*100)+'%';
@@ -1363,7 +1366,13 @@ document.addEventListener('keydown',e=>{
 $('fs-all').onclick=()=>{ const st={...curSet()}; for(const f of fields)f.set={...st}; newSet={...st}; rebuild(); setStatus('settings copied to every word'); };
 
 // per-word settings wiring — rebuild when the set of words changes, restyle when only a filter does
-function onSet(mut, rebuildNeeded){ mut(curSet()); if(!V)return; if(selected!=null&&rebuildNeeded) rebuild(); else { renderFields(); draw(); } }
+// with a word selected, only that word changes; with none selected, every word does (and the defaults for new ones)
+function onSet(mut, rebuildNeeded){
+  if(selected!=null&&fields[selected]) mut(fields[selected].set);
+  else { mut(newSet); for(const f of fields) mut(f.set); }
+  if(!V)return;
+  if(rebuildNeeded) rebuild(); else { renderFields(); draw(); updateStatus(); }
+}
 $('r-cutoff').oninput=e=>{$('v-cutoff').textContent=e.target.value; onSet(s=>s.cutoff=+e.target.value,true);};
 $('r-minsim').oninput=e=>{$('v-minsim').textContent=e.target.value+'%'; onSet(s=>s.minSim=+e.target.value/100,false);};
 $('f-hubs').onchange=e=>onSet(s=>s.hideHubs=e.target.checked,false);
@@ -1588,7 +1597,7 @@ addEventListener('resize',()=>{ if(G.nodes.length) relayout(); });
     { sel:'#search', side:'right', title:'add a word',
       body:`Type a word and press enter. It appears on the map with its <b>neighbours</b> — the words that sit closest to it in the space — in its own colour. Add up to six.` },
     { sel:'#fields-list', side:'right', title:'your words',
-      body:`Each row is one of your words. Click a row to tune that word's neighbourhood on its own: how many neighbours it pulls in, how close they have to be. The × removes it; undo brings it back.` },
+      body:`Each row is one of your words. The settings below apply to all of them; click a row to tune that word on its own — how many neighbours it pulls in, how close they have to be. The × removes it; undo brings it back.` },
     { sel:'#pairs-wrap', side:'right', optional:true, title:'between your words',
       body:`This grid is the real closeness of each pair. Hover a cell and the pair lights up on the map; click to pin its bridge in the panel on the right.`,
       altBody:`Once you have two or more words, a grid appears here with the real closeness of every pair. Hover a cell to light that pair up on the map; click to pin it.` },
